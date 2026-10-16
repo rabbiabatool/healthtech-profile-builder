@@ -58,3 +58,28 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         if value is not None and not (2 <= value <= 650):
             raise serializers.ValidationError("Weight must be between 2 and 650 kg.")
         return value
+
+class AdminProfileListSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = HealthProfile
+        fields = [
+            "id",
+            "user_id",
+            "full_name",
+            "email",
+            "blood_group",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AdminProfileSerializer(ProfileSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+
+    class Meta(ProfileSerializer.Meta):
+        fields = ProfileSerializer.Meta.fields + ["user_id"]

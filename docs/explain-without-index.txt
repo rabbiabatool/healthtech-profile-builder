@@ -1,0 +1,25 @@
+﻿Query: status=ACTIVE, newest first, first 20 rows
+WITHOUT index idx_profile_status_created_id (dropped temporarily, then rolled back)
+
+Limit  (cost=593.67..593.72 rows=20 width=277) (actual time=19.994..20.001 rows=20.00 loops=1)
+  Buffers: shared hit=308
+  ->  Sort  (cost=593.67..604.28 rows=4245 width=277) (actual time=19.992..19.997 rows=20.00 loops=1)
+        Sort Key: health_profiles.created_at DESC, health_profiles.id DESC
+        Sort Method: top-N heapsort  Memory: 42kB
+        Buffers: shared hit=308
+        ->  Hash Join  (cost=294.56..480.71 rows=4245 width=277) (actual time=7.966..15.023 rows=4245.00 loops=1)
+              Hash Cond: (users.id = health_profiles.user_id)
+              Buffers: shared hit=302
+              ->  Seq Scan on users  (cost=0.00..173.01 rows=5001 width=165) (actual time=0.026..1.358 rows=5001.00 loops=1)
+                    Buffers: shared hit=123
+              ->  Hash  (cost=241.50..241.50 rows=4245 width=112) (actual time=7.865..7.866 rows=4245.00 loops=1)
+                    Buckets: 8192  Batches: 1  Memory Usage: 680kB
+                    Buffers: shared hit=179
+                    ->  Seq Scan on health_profiles  (cost=0.00..241.50 rows=4245 width=112) (actual time=0.053..4.199 rows=4245.00 loops=1)
+                          Filter: ((status)::text = 'ACTIVE'::text)
+                          Rows Removed by Filter: 755
+                          Buffers: shared hit=179
+Planning:
+  Buffers: shared hit=249
+Planning Time: 8.264 ms
+Execution Time: 20.270 ms

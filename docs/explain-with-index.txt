@@ -1,0 +1,19 @@
+﻿Query: status=ACTIVE, newest first, first 20 rows
+WITH index idx_profile_status_created_id
+
+Limit  (cost=0.56..13.35 rows=20 width=277) (actual time=0.484..1.769 rows=20.00 loops=1)
+  Buffers: shared hit=82
+  ->  Nested Loop  (cost=0.56..2713.58 rows=4245 width=277) (actual time=0.483..1.762 rows=20.00 loops=1)
+        Buffers: shared hit=82
+        ->  Index Scan using idx_profile_status_created_id on health_profiles  (cost=0.28..884.22 rows=4245 width=112) (actual time=0.383..1.196 rows=20.00 loops=1)
+              Index Cond: ((status)::text = 'ACTIVE'::text)
+              Index Searches: 1
+              Buffers: shared hit=22
+        ->  Index Scan using users_pkey on users  (cost=0.28..0.43 rows=1 width=165) (actual time=0.025..0.025 rows=1.00 loops=20)
+              Index Cond: (id = health_profiles.user_id)
+              Index Searches: 20
+              Buffers: shared hit=60
+Planning:
+  Buffers: shared hit=285
+Planning Time: 36.300 ms
+Execution Time: 2.600 ms

@@ -1,6 +1,6 @@
 from django.conf import settings
 from rest_framework import exceptions
-from rest_framework.authentication import CSRFCheck
+from rest_framework.authentication import CSRFCheck, SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
@@ -27,3 +27,8 @@ class CookieJWTAuthentication(JWTAuthentication):
             enforce_csrf(request)
 
         return user, validated_token
+
+
+class AdminSessionAuthentication(SessionAuthentication):
+    def authenticate_header(self, request):
+        return "Session"

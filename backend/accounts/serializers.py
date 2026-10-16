@@ -16,6 +16,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "full_name"]
         read_only_fields = fields
 
+class AdminUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "email", "full_name", "role"]
+        read_only_fields = fields
+
 
 class SignupSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150)
@@ -53,3 +59,4 @@ class SignupSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
+

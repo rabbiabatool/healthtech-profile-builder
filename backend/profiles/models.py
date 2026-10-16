@@ -42,7 +42,10 @@ class HealthProfile(models.Model):
     class Meta:
         db_table = "health_profiles"
         indexes = [
-            models.Index(fields=["status", "-created_at"], name="idx_profile_status_created"),
+            models.Index(
+                fields=["status", "-created_at", "-id"],
+                name="idx_profile_status_created_id",
+            ),
         ]
         constraints = [
             models.CheckConstraint(

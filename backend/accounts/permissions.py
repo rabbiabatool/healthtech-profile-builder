@@ -14,3 +14,16 @@ class IsStandardUser(BasePermission):
             and user.is_active
             and user.role == Role.USER
         )
+
+
+class IsAdminRole(BasePermission):
+    message = "Administrator access only."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_active
+            and user.role == Role.ADMIN
+        )

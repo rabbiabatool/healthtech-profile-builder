@@ -59,3 +59,23 @@ def csrf_header():
         return {"HTTP_X_CSRFTOKEN": token}
 
     return _header
+    
+@pytest.fixture
+def admin_login():
+    def _login(client, email="boss@example.com", password=PASSWORD):
+        token = client.get("/api/admin/csrf").json()["csrfToken"]
+        return client.post(
+            "/api/admin/login",
+            {"email": email, "password": password},
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+
+    return _login
+
+
+@pytest.fixture
+def admin_client(admin, admin_login):
+    client = APIClient()
+    assert admin_login(client).status_code == 200
+    return client
