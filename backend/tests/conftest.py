@@ -59,7 +59,7 @@ def csrf_header():
         return {"HTTP_X_CSRFTOKEN": token}
 
     return _header
-    
+
 @pytest.fixture
 def admin_login():
     def _login(client, email="boss@example.com", password=PASSWORD):
