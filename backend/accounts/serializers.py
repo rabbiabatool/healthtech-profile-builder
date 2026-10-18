@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
-from profiles.models import HealthProfile
+from profiles.services import create_profile_with_sections
 
 from .models import User
 
@@ -50,7 +50,7 @@ class SignupSerializer(serializers.Serializer):
                     password=validated_data["password"],
                     full_name=validated_data["full_name"],
                 )
-                HealthProfile.objects.create(user=user)
+                create_profile_with_sections(user)
         except IntegrityError:
             raise serializers.ValidationError({"email": [DUPLICATE_EMAIL_MESSAGE]})
         return user
