@@ -1,0 +1,13 @@
+﻿Query: audit events for profile 1063, newest first, first 20 rows
+WITH index idx_audit_profile_newest
+
+Limit  (cost=0.29..84.12 rows=20 width=126) (actual time=0.416..0.453 rows=20.00 loops=1)
+  Buffers: shared hit=25
+  ->  Index Scan using idx_audit_profile_newest on audit_events  (cost=0.29..96.69 rows=23 width=126) (actual time=0.414..0.449 rows=20.00 loops=1)
+        Index Cond: (profile_id = 1063)
+        Index Searches: 1
+        Buffers: shared hit=25
+Planning:
+  Buffers: shared hit=60
+Planning Time: 0.404 ms
+Execution Time: 0.491 ms

@@ -2,14 +2,14 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from profiles.models import HealthProfile
+from profiles.services import create_profile_with_sections
 
 PASSWORD = "Str0ng!Pass#2026"
 
 
 def _make_user(email, full_name):
     user = User.objects.create_user(email=email, password=PASSWORD, full_name=full_name)
-    HealthProfile.objects.create(user=user)
+    create_profile_with_sections(user)
     return user
 
 

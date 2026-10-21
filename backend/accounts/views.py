@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate, logout
 
 from .authentication import enforce_csrf
 from .models import Role, User
@@ -72,6 +73,32 @@ class SignupView(APIView):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+# class UserLoginView(APIView):
+#     authentication_classes = []
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         serializer = LoginSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         user = authenticate(
+#             request=request,
+#             username=serializer.validated_data["email"],
+#             password=serializer.validated_data["password"],
+#         )
+#         if user is None or user.role != Role.USER:
+#             return Response(
+#                 {"detail": INVALID_LOGIN_MESSAGE},
+#                 status=status.HTTP_401_UNAUTHORIZED,
+#             )
+
+#         update_last_login(None, user)
+#         refresh = RefreshToken.for_user(user)
+#         response = Response({"user": UserSerializer(user).data})
+#         set_auth_cookies(response, refresh)
+#         return response
+
+
 class UserLoginView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -85,16 +112,24 @@ class UserLoginView(APIView):
             username=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
         )
+
         if user is None or user.role != Role.USER:
             return Response(
                 {"detail": INVALID_LOGIN_MESSAGE},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # 1. Invalidate any existing Django admin session.
+        # Do this only after the member's credentials are valid.
+        logout(request)
+
+        # 2. Create the member's JWT tokens.
         update_last_login(None, user)
         refresh = RefreshToken.for_user(user)
+
         response = Response({"user": UserSerializer(user).data})
         set_auth_cookies(response, refresh)
+
         return response
 
 

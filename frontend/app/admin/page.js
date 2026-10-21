@@ -10,16 +10,17 @@ import Field from "@/components/Field";
 import StatusBadge from "@/components/StatusBadge";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { formatDate } from "@/lib/format";
+import { COMPLETION_STATUSES, ORDERINGS, PROFILE_STATUSES, labelOf } from "@/lib/options";
 import usePageTitle from "@/lib/usePageTitle";
 
 const PAGE_SIZE = 10;
+const BLANK = { search: "", status: "", completion_status: "", ordering: "-created_at" };
 
 export default function AdminDashboardPage() {
   usePageTitle("Admin dashboard");
   const router = useRouter();
-  const [searchInput, setSearchInput] = useState("");
-  const [statusInput, setStatusInput] = useState("");
-  const [filters, setFilters] = useState({ search: "", status: "", page: 1 });
+  const [inputs, setInputs] = useState(BLANK);
+  const [applied, setApplied] = useState({ ...BLANK, page: 1 });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,9 +28,10 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const params = new URLSearchParams({ page: String(filters.page), page_size: String(PAGE_SIZE) });
-      if (filters.search) params.set("search", filters.search);
-      if (filters.status) params.set("status", filters.status);
+      const params = new URLSearchParams({ page: String(applied.page), page_size: String(PAGE_SIZE) });
+      for (const key of ["search", "status", "completion_status", "ordering"]) {
+        if (applied[key]) params.set(key, applied[key]);
+      }
       try {
         const data = await api(`/api/admin/profiles?${params}`);
         if (!cancelled) {
@@ -50,24 +52,27 @@ export default function AdminDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [filters, router]);
+  }, [applied, router]);
+
+  function handleInput(event) {
+    setInputs({ ...inputs, [event.target.name]: event.target.value });
+  }
 
   function applyFilters(event) {
     event.preventDefault();
     setLoading(true);
-    setFilters({ search: searchInput.trim(), status: statusInput, page: 1 });
+    setApplied({ ...inputs, search: inputs.search.trim(), page: 1 });
   }
 
   function clearFilters() {
-    setSearchInput("");
-    setStatusInput("");
+    setInputs(BLANK);
     setLoading(true);
-    setFilters({ search: "", status: "", page: 1 });
+    setApplied({ ...BLANK, page: 1 });
   }
 
   function goToPage(page) {
     setLoading(true);
-    setFilters({ ...filters, page });
+    setApplied({ ...applied, page });
   }
 
   const totalPages = result ? Math.max(1, Math.ceil(result.count / PAGE_SIZE)) : 1;
@@ -82,30 +87,34 @@ export default function AdminDashboardPage() {
       <AdminBar />
       <h1>Member profiles</h1>
 
-      <form className="card toolbar" onSubmit={applyFilters} role="search" aria-label="Search profiles">
-        <Field
-          id="search"
-          type="search"
-          label="Search by name or email"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          maxLength={100}
-          autoComplete="off"
-        />
-        <Field
-          id="status"
-          as="select"
-          label="Status"
-          value={statusInput}
-          onChange={(event) => setStatusInput(event.target.value)}
-        >
+      <form className="card toolbar" onSubmit={applyFilters} role="search" aria-label="Search and filter profiles">
+        <Field id="search" type="search" label="Search by name or email" value={inputs.search} onChange={handleInput} maxLength={100} autoComplete="off" />
+        <Field id="status" as="select" label="Profile status" value={inputs.status} onChange={handleInput}>
           <option value="">All</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          {PROFILE_STATUSES.map(([value, text]) => (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          ))}
+        </Field>
+        <Field id="completion_status" as="select" label="Completion" value={inputs.completion_status} onChange={handleInput}>
+          <option value="">All</option>
+          {COMPLETION_STATUSES.map(([value, text]) => (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          ))}
+        </Field>
+        <Field id="ordering" as="select" label="Sort by" value={inputs.ordering} onChange={handleInput}>
+          {ORDERINGS.map(([value, text]) => (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          ))}
         </Field>
         <div className="row">
           <button className="btn btn-primary" type="submit">
-            Search
+            Apply
           </button>
           <button className="btn btn-secondary" type="button" onClick={clearFilters}>
             Clear
@@ -126,13 +135,11 @@ export default function AdminDashboardPage() {
           <>
             <div className="table-wrap">
               <table>
-                <caption className="sr-only">Member health profiles, newest first</caption>
+                <caption className="sr-only">Member profiles</caption>
                 <thead>
                   <tr>
                     <th scope="col">Member</th>
-                    <th scope="col" className="hide-sm">
-                      Blood group
-                    </th>
+                    <th scope="col">Completion</th>
                     <th scope="col">Status</th>
                     <th scope="col" className="hide-sm">
                       Created
@@ -150,7 +157,16 @@ export default function AdminDashboardPage() {
                         <br />
                         <span className="muted">{row.email}</span>
                       </td>
-                      <td className="hide-sm">{row.blood_group || "—"}</td>
+                      <td>
+                        <div className="mini-progress">
+                          <progress value={row.completion_percent} max="100" aria-label={`Completion for ${row.full_name}`}>
+                            {row.completion_percent}%
+                          </progress>
+                          <span>
+                            {row.completion_percent}% <span className="sr-only">{labelOf(COMPLETION_STATUSES, row.completion_status)}</span>
+                          </span>
+                        </div>
+                      </td>
                       <td>
                         <StatusBadge status={row.status} />
                       </td>
@@ -167,23 +183,13 @@ export default function AdminDashboardPage() {
             </div>
 
             <nav className="pager" aria-label="Pagination">
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => goToPage(filters.page - 1)}
-                disabled={!result.previous || loading}
-              >
+              <button className="btn btn-secondary" type="button" onClick={() => goToPage(applied.page - 1)} disabled={!result.previous || loading}>
                 Previous
               </button>
               <span>
-                Page {filters.page} of {totalPages}
+                Page {applied.page} of {totalPages}
               </span>
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => goToPage(filters.page + 1)}
-                disabled={!result.next || loading}
-              >
+              <button className="btn btn-secondary" type="button" onClick={() => goToPage(applied.page + 1)} disabled={!result.next || loading}>
                 Next
               </button>
             </nav>
@@ -192,7 +198,7 @@ export default function AdminDashboardPage() {
 
         {result && !loading && result.results.length === 0 ? (
           <div className="card">
-            <p style={{ margin: 0 }}>No profiles match your search.</p>
+            <p style={{ margin: 0 }}>No profiles match your filters.</p>
           </div>
         ) : null}
       </section>

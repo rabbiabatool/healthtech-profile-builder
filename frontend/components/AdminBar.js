@@ -1,12 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api, ApiError } from "@/lib/api";
 
+const LINKS = [
+  { href: "/admin", label: "Profiles" },
+  { href: "/admin/audit", label: "Audit log" },
+];
+
 export default function AdminBar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [admin, setAdmin] = useState(null);
 
   useEffect(() => {
@@ -36,17 +43,30 @@ export default function AdminBar() {
     router.replace("/admin/login");
   }
 
+  function isCurrent(href) {
+    return pathname === href || (href === "/admin" && pathname.startsWith("/admin/profiles"));
+  }
+
   return (
     <div className="bar">
-      <p className="muted">
-        {admin ? (
-          <>
-            Signed in as <strong>{admin.full_name}</strong>
-          </>
-        ) : (
-          "Checking your session…"
-        )}
-      </p>
+      <div>
+        <p className="muted" style={{ margin: 0 }}>
+          {admin ? (
+            <>
+              Signed in as <strong>{admin.full_name}</strong>
+            </>
+          ) : (
+            "Checking your session…"
+          )}
+        </p>
+        <nav aria-label="Admin sections" className="nav-links">
+          {LINKS.map(({ href, label }) => (
+            <Link key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined}>
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </div>
       <button className="btn btn-secondary" type="button" onClick={handleLogout}>
         Log out
       </button>

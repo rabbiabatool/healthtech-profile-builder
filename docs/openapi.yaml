@@ -1,0 +1,1682 @@
+openapi: 3.0.3
+info:
+  title: HealthTech Profile Builder API
+  version: 2.0.0
+  description: Fictional-data demo API with two separate sign-in flows. Members use
+    short-lived JWTs stored in HttpOnly cookies. Administrators use server-side sessions.
+    Every state-changing request needs an X-CSRFToken header (fetch one from GET /api/auth/csrf
+    or /api/admin/csrf).
+paths:
+  /api/admin/audit-events:
+    get:
+      operationId: admin_audit_events_list
+      description: 'Newest first, cursor pagination. Filters: action, outcome, actor_id,
+        profile_id, created_after, created_before. There is no way to create, change
+        or delete events through the API.'
+      summary: List audit events
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - ADMIN_LOGIN
+          - ADMIN_LOGIN_FAILED
+          - ADMIN_LOGOUT
+          - ADMIN_PROFILE_DEACTIVATED
+          - ADMIN_PROFILE_REACTIVATED
+          - ADMIN_PROFILE_VIEWED
+          - ADMIN_SEARCH_PERFORMED
+          - DEMOGRAPHICS_RESET
+          - DEMOGRAPHICS_UPDATED
+          - EMERGENCY_CONTACT_CREATED
+          - EMERGENCY_CONTACT_DELETED
+          - EMERGENCY_CONTACT_UPDATED
+          - WELLNESS_RESET
+          - WELLNESS_UPDATED
+        description: |-
+          * `DEMOGRAPHICS_UPDATED` - Demographics updated
+          * `DEMOGRAPHICS_RESET` - Demographics reset
+          * `WELLNESS_UPDATED` - Wellness preferences updated
+          * `WELLNESS_RESET` - Wellness preferences reset
+          * `EMERGENCY_CONTACT_CREATED` - Emergency contact added
+          * `EMERGENCY_CONTACT_UPDATED` - Emergency contact updated
+          * `EMERGENCY_CONTACT_DELETED` - Emergency contact deleted
+          * `ADMIN_LOGIN` - Admin signed in
+          * `ADMIN_LOGIN_FAILED` - Admin sign-in failed
+          * `ADMIN_LOGOUT` - Admin signed out
+          * `ADMIN_PROFILE_VIEWED` - Profile viewed by admin
+          * `ADMIN_SEARCH_PERFORMED` - Profile search performed
+          * `ADMIN_PROFILE_DEACTIVATED` - Profile deactivated
+          * `ADMIN_PROFILE_REACTIVATED` - Profile reactivated
+      - in: query
+        name: actor_id
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - in: query
+        name: outcome
+        schema:
+          type: string
+          enum:
+          - FAILED
+          - SUCCESS
+        description: |-
+          * `SUCCESS` - Success
+          * `FAILED` - Failed
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: profile_id
+        schema:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+      tags:
+      - Audit log
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/admin/csrf:
+    get:
+      operationId: admin_csrf_retrieve
+      description: Returns a token and sets the csrftoken cookie. Send the token in
+        the X-CSRFToken header on state-changing requests.
+      summary: Get a CSRF token
+      tags:
+      - Authentication (members)
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+          description: ''
+  /api/admin/login:
+    post:
+      operationId: admin_login_create
+      description: Admins are created from the command line and cannot self-register.
+        Sets the admin_session cookie.
+      summary: Admin login
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Admin session
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLogin'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Invalid email or password (or not an admin account).
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/admin/logout:
+    post:
+      operationId: admin_logout_create
+      description: Destroys the server-side session.
+      summary: Admin logout
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Admin session
+      security:
+      - adminSessionCookie: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/admin/me:
+    get:
+      operationId: admin_me_retrieve
+      summary: Who am I (admin)
+      tags:
+      - Admin session
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/admin/profiles:
+    get:
+      operationId: admin_profiles_list
+      description: 'Filters: status, completion_status, created_after, created_before,
+        search. Ordering: four fixed choices. A search or filter is audited (names
+        only, never the search words).'
+      summary: List and search member profiles
+      parameters:
+      - in: query
+        name: completion_status
+        schema:
+          type: string
+          enum:
+          - COMPLETE
+          - IN_PROGRESS
+          - NOT_STARTED
+        description: |-
+          * `NOT_STARTED` - Not started
+          * `IN_PROGRESS` - In progress
+          * `COMPLETE` - Complete
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: ordering
+        schema:
+          type: string
+          enum:
+          - -completion_percent
+          - -created_at
+          - completion_percent
+          - created_at
+        description: |-
+          * `created_at` - Oldest first
+          * `-created_at` - Newest first
+          * `completion_percent` - Least complete first
+          * `-completion_percent` - Most complete first
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+        description: |-
+          * `ACTIVE` - Active
+          * `INACTIVE` - Inactive
+      tags:
+      - Admin profiles
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminProfileListList'
+          description: ''
+  /api/admin/profiles/{id}:
+    get:
+      operationId: admin_profiles_retrieve
+      description: Read-only. Every view is recorded in the audit log.
+      summary: View one profile with all sections
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin profiles
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfile'
+          description: ''
+  /api/admin/profiles/{id}/deactivate:
+    patch:
+      operationId: admin_profiles_deactivate_partial_update
+      description: The member can still read the profile but can no longer edit it.
+        Recorded in the audit log.
+      summary: Deactivate a profile
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin profiles
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfile'
+          description: ''
+        '404':
+          description: Does not exist, or does not belong to you.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/admin/profiles/{id}/reactivate:
+    patch:
+      operationId: admin_profiles_reactivate_partial_update
+      summary: Reactivate a profile
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin profiles
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfile'
+          description: ''
+        '404':
+          description: Does not exist, or does not belong to you.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/admin/profiles/{profile_id}/audit-events:
+    get:
+      operationId: admin_profiles_audit_events_list
+      description: 'Newest first, cursor pagination. Field names only: values are
+        never stored.'
+      summary: One profile's audit timeline
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - ADMIN_LOGIN
+          - ADMIN_LOGIN_FAILED
+          - ADMIN_LOGOUT
+          - ADMIN_PROFILE_DEACTIVATED
+          - ADMIN_PROFILE_REACTIVATED
+          - ADMIN_PROFILE_VIEWED
+          - ADMIN_SEARCH_PERFORMED
+          - DEMOGRAPHICS_RESET
+          - DEMOGRAPHICS_UPDATED
+          - EMERGENCY_CONTACT_CREATED
+          - EMERGENCY_CONTACT_DELETED
+          - EMERGENCY_CONTACT_UPDATED
+          - WELLNESS_RESET
+          - WELLNESS_UPDATED
+        description: |-
+          * `DEMOGRAPHICS_UPDATED` - Demographics updated
+          * `DEMOGRAPHICS_RESET` - Demographics reset
+          * `WELLNESS_UPDATED` - Wellness preferences updated
+          * `WELLNESS_RESET` - Wellness preferences reset
+          * `EMERGENCY_CONTACT_CREATED` - Emergency contact added
+          * `EMERGENCY_CONTACT_UPDATED` - Emergency contact updated
+          * `EMERGENCY_CONTACT_DELETED` - Emergency contact deleted
+          * `ADMIN_LOGIN` - Admin signed in
+          * `ADMIN_LOGIN_FAILED` - Admin sign-in failed
+          * `ADMIN_LOGOUT` - Admin signed out
+          * `ADMIN_PROFILE_VIEWED` - Profile viewed by admin
+          * `ADMIN_SEARCH_PERFORMED` - Profile search performed
+          * `ADMIN_PROFILE_DEACTIVATED` - Profile deactivated
+          * `ADMIN_PROFILE_REACTIVATED` - Profile reactivated
+      - in: query
+        name: actor_id
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - in: query
+        name: outcome
+        schema:
+          type: string
+          enum:
+          - FAILED
+          - SUCCESS
+        description: |-
+          * `SUCCESS` - Success
+          * `FAILED` - Failed
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: path
+        name: profile_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: profile_id
+        schema:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+      tags:
+      - Audit log
+      security:
+      - adminSessionCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/auth/csrf:
+    get:
+      operationId: auth_csrf_retrieve
+      description: Returns a token and sets the csrftoken cookie. Send the token in
+        the X-CSRFToken header on state-changing requests.
+      summary: Get a CSRF token
+      tags:
+      - Authentication (members)
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+          description: ''
+  /api/auth/refresh:
+    post:
+      operationId: auth_refresh_create
+      description: Rotates the refresh token (the old one is revoked) and issues new
+        cookies.
+      summary: Refresh the member session
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Authentication (members)
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detail'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/auth/signup:
+    post:
+      operationId: auth_signup_create
+      description: Creates the account and an empty profile. Members cannot register
+        as administrators.
+      summary: Register a member
+      tags:
+      - Authentication (members)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+  /api/auth/user/login:
+    post:
+      operationId: auth_user_login_create
+      description: On success sets the access_token and refresh_token HttpOnly cookies.
+        No token is returned in the body.
+      summary: Member login
+      tags:
+      - Authentication (members)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberLogin'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Invalid email or password.
+  /api/auth/user/logout:
+    post:
+      operationId: auth_user_logout_create
+      description: Revokes the refresh token and clears both cookies.
+      summary: Member logout
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Authentication (members)
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/profiles/me:
+    get:
+      operationId: profiles_me_retrieve
+      description: Status, completion (percent, status and missing items) and all
+        three sections.
+      summary: Get my whole profile
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/profiles/me/demographics:
+    get:
+      operationId: profiles_me_demographics_retrieve
+      summary: Get my demographics
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demographics'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    patch:
+      operationId: profiles_me_demographics_partial_update
+      description: Send only the fields to change. Completion is recalculated and
+        the edit is audited (field names only).
+      summary: Update my demographics
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Member profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDemographicsRequest'
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demographics'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    delete:
+      operationId: profiles_me_demographics_destroy
+      description: Clears every field in this section and returns the empty section.
+      summary: Reset my demographics
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Demographics'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/profiles/me/emergency-contacts:
+    get:
+      operationId: profiles_me_emergency_contacts_list
+      description: At most three, primary first.
+      summary: List my emergency contacts
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    post:
+      operationId: profiles_me_emergency_contacts_create
+      description: The first contact becomes primary automatically. A profile can
+        hold at most three contacts.
+      summary: Add an emergency contact
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Member profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyContactRequest'
+        required: true
+      security:
+      - memberJwtCookie: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/profiles/me/emergency-contacts/{id}:
+    get:
+      operationId: profiles_me_emergency_contacts_retrieve
+      summary: Get one of my emergency contacts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+        '404':
+          description: Does not exist, or does not belong to you.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    patch:
+      operationId: profiles_me_emergency_contacts_partial_update
+      description: Setting is_primary to true demotes the current primary. The primary
+        flag cannot be switched off directly.
+      summary: Edit an emergency contact
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Member profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEmergencyContactRequest'
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+          description: ''
+        '404':
+          description: Does not exist, or does not belong to you.
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    delete:
+      operationId: profiles_me_emergency_contacts_destroy
+      description: Deleting the primary promotes the oldest remaining contact.
+      summary: Delete an emergency contact
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          description: Does not exist, or does not belong to you.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+  /api/profiles/me/wellness:
+    get:
+      operationId: profiles_me_wellness_retrieve
+      summary: Get my wellness preferences
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wellness'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    patch:
+      operationId: profiles_me_wellness_partial_update
+      description: Send only the fields to change. Completion is recalculated and
+        the edit is audited (field names only).
+      summary: Update my wellness preferences
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Member profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWellnessRequest'
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wellness'
+          description: ''
+        '400':
+          description: Validation failed. The body maps field names to lists of messages.
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+    delete:
+      operationId: profiles_me_wellness_destroy
+      description: Clears every field in this section and returns the empty section.
+      summary: Reset my wellness preferences
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
+      tags:
+      - Member profile
+      security:
+      - memberJwtCookie: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wellness'
+          description: ''
+        '401':
+          description: Not signed in, or the session or token has expired.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
+components:
+  schemas:
+    ActivityLevelEnum:
+      enum:
+      - SEDENTARY
+      - LIGHT
+      - MODERATE
+      - ACTIVE
+      type: string
+      description: |-
+        * `SEDENTARY` - Sedentary
+        * `LIGHT` - Lightly active
+        * `MODERATE` - Moderately active
+        * `ACTIVE` - Very active
+    ActorRoleEnum:
+      enum:
+      - USER
+      - ADMIN
+      - ANONYMOUS
+      type: string
+      description: |-
+        * `USER` - Member
+        * `ADMIN` - Administrator
+        * `ANONYMOUS` - Not signed in
+    AdminLogin:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUser'
+        csrfToken:
+          type: string
+      required:
+      - csrfToken
+      - user
+    AdminProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProfileStatusEnum'
+          readOnly: true
+        completion:
+          type: string
+          readOnly: true
+        demographics:
+          allOf:
+          - $ref: '#/components/schemas/Demographics'
+          readOnly: true
+        emergency_contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmergencyContact'
+          readOnly: true
+        wellness:
+          allOf:
+          - $ref: '#/components/schemas/Wellness'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        user_id:
+          type: integer
+          readOnly: true
+      required:
+      - completion
+      - created_at
+      - demographics
+      - email
+      - emergency_contacts
+      - full_name
+      - id
+      - status
+      - updated_at
+      - user_id
+      - wellness
+    AdminProfileList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user_id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProfileStatusEnum'
+          readOnly: true
+        completion_percent:
+          type: integer
+          readOnly: true
+        completion_status:
+          allOf:
+          - $ref: '#/components/schemas/CompletionStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - completion_percent
+      - completion_status
+      - created_at
+      - email
+      - full_name
+      - id
+      - status
+      - user_id
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - id
+      - role
+    AuditActionEnum:
+      enum:
+      - DEMOGRAPHICS_UPDATED
+      - DEMOGRAPHICS_RESET
+      - WELLNESS_UPDATED
+      - WELLNESS_RESET
+      - EMERGENCY_CONTACT_CREATED
+      - EMERGENCY_CONTACT_UPDATED
+      - EMERGENCY_CONTACT_DELETED
+      - ADMIN_LOGIN
+      - ADMIN_LOGIN_FAILED
+      - ADMIN_LOGOUT
+      - ADMIN_PROFILE_VIEWED
+      - ADMIN_SEARCH_PERFORMED
+      - ADMIN_PROFILE_DEACTIVATED
+      - ADMIN_PROFILE_REACTIVATED
+      type: string
+      description: |-
+        * `DEMOGRAPHICS_UPDATED` - Demographics updated
+        * `DEMOGRAPHICS_RESET` - Demographics reset
+        * `WELLNESS_UPDATED` - Wellness preferences updated
+        * `WELLNESS_RESET` - Wellness preferences reset
+        * `EMERGENCY_CONTACT_CREATED` - Emergency contact added
+        * `EMERGENCY_CONTACT_UPDATED` - Emergency contact updated
+        * `EMERGENCY_CONTACT_DELETED` - Emergency contact deleted
+        * `ADMIN_LOGIN` - Admin signed in
+        * `ADMIN_LOGIN_FAILED` - Admin sign-in failed
+        * `ADMIN_LOGOUT` - Admin signed out
+        * `ADMIN_PROFILE_VIEWED` - Profile viewed by admin
+        * `ADMIN_SEARCH_PERFORMED` - Profile search performed
+        * `ADMIN_PROFILE_DEACTIVATED` - Profile deactivated
+        * `ADMIN_PROFILE_REACTIVATED` - Profile reactivated
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor_id:
+          type: integer
+          readOnly: true
+        actor_role:
+          allOf:
+          - $ref: '#/components/schemas/ActorRoleEnum'
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/AuditActionEnum'
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/OutcomeEnum'
+          readOnly: true
+        profile_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        changed_fields:
+          readOnly: true
+        metadata:
+          readOnly: true
+      required:
+      - action
+      - actor_id
+      - actor_role
+      - changed_fields
+      - created_at
+      - id
+      - metadata
+      - outcome
+      - profile_id
+    BlankEnum:
+      enum:
+      - ''
+    BloodGroupEnum:
+      enum:
+      - A+
+      - A-
+      - B+
+      - B-
+      - AB+
+      - AB-
+      - O+
+      - O-
+      type: string
+      description: |-
+        * `A+` - A+
+        * `A-` - A-
+        * `B+` - B+
+        * `B-` - B-
+        * `AB+` - AB+
+        * `AB-` - AB-
+        * `O+` - O+
+        * `O-` - O-
+    CompletionStatusEnum:
+      enum:
+      - NOT_STARTED
+      - IN_PROGRESS
+      - COMPLETE
+      type: string
+      description: |-
+        * `NOT_STARTED` - Not started
+        * `IN_PROGRESS` - In progress
+        * `COMPLETE` - Complete
+    CsrfToken:
+      type: object
+      properties:
+        csrfToken:
+          type: string
+      required:
+      - csrfToken
+    Demographics:
+      type: object
+      properties:
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        blood_group:
+          oneOf:
+          - $ref: '#/components/schemas/BloodGroupEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        height_cm:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        weight_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        country:
+          type: string
+          maxLength: 60
+        preferred_language:
+          type: string
+          maxLength: 40
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - updated_at
+    Detail:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    DietPreferenceEnum:
+      enum:
+      - NO_PREFERENCE
+      - VEGETARIAN
+      - VEGAN
+      - HALAL
+      - LOW_SUGAR
+      - OTHER
+      type: string
+      description: |-
+        * `NO_PREFERENCE` - No preference
+        * `VEGETARIAN` - Vegetarian
+        * `VEGAN` - Vegan
+        * `HALAL` - Halal
+        * `LOW_SUGAR` - Low sugar
+        * `OTHER` - Other
+    EmergencyContact:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        is_primary:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - phone
+      - updated_at
+    EmergencyContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        is_primary:
+          type: boolean
+      required:
+      - name
+      - phone
+    GenderEnum:
+      enum:
+      - FEMALE
+      - MALE
+      - NON_BINARY
+      - PREFER_NOT_TO_SAY
+      type: string
+      description: |-
+        * `FEMALE` - Female
+        * `MALE` - Male
+        * `NON_BINARY` - Non-binary
+        * `PREFER_NOT_TO_SAY` - Prefer not to say
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+      required:
+      - email
+      - password
+    MemberLogin:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - user
+    MyProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProfileStatusEnum'
+          readOnly: true
+        completion:
+          type: string
+          readOnly: true
+        demographics:
+          allOf:
+          - $ref: '#/components/schemas/Demographics'
+          readOnly: true
+        emergency_contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmergencyContact'
+          readOnly: true
+        wellness:
+          allOf:
+          - $ref: '#/components/schemas/Wellness'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - completion
+      - created_at
+      - demographics
+      - email
+      - emergency_contacts
+      - full_name
+      - id
+      - status
+      - updated_at
+      - wellness
+    OutcomeEnum:
+      enum:
+      - SUCCESS
+      - FAILED
+      type: string
+      description: |-
+        * `SUCCESS` - Success
+        * `FAILED` - Failed
+    PaginatedAdminProfileListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminProfileList'
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    PatchedDemographicsRequest:
+      type: object
+      properties:
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        blood_group:
+          oneOf:
+          - $ref: '#/components/schemas/BloodGroupEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        height_cm:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        weight_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        country:
+          type: string
+          maxLength: 60
+        preferred_language:
+          type: string
+          maxLength: 40
+    PatchedEmergencyContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        is_primary:
+          type: boolean
+    PatchedWellnessRequest:
+      type: object
+      properties:
+        activity_level:
+          oneOf:
+          - $ref: '#/components/schemas/ActivityLevelEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        diet_preference:
+          oneOf:
+          - $ref: '#/components/schemas/DietPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        sleep_goal_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,1})?$
+          nullable: true
+        reminder_channel:
+          oneOf:
+          - $ref: '#/components/schemas/ReminderChannelEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        wellness_goals:
+          type: string
+          maxLength: 500
+        allergy_notes:
+          type: string
+          maxLength: 1000
+        condition_notes:
+          type: string
+          maxLength: 1000
+    ProfileStatusEnum:
+      enum:
+      - ACTIVE
+      - INACTIVE
+      type: string
+      description: |-
+        * `ACTIVE` - Active
+        * `INACTIVE` - Inactive
+    RelationshipEnum:
+      enum:
+      - PARENT
+      - SPOUSE
+      - SIBLING
+      - CHILD
+      - FRIEND
+      - OTHER
+      type: string
+      description: |-
+        * `PARENT` - Parent
+        * `SPOUSE` - Spouse or partner
+        * `SIBLING` - Sibling
+        * `CHILD` - Child
+        * `FRIEND` - Friend
+        * `OTHER` - Other
+    ReminderChannelEnum:
+      enum:
+      - NONE
+      - EMAIL
+      - SMS
+      - APP
+      type: string
+      description: |-
+        * `NONE` - No reminders
+        * `EMAIL` - Email
+        * `SMS` - Text message
+        * `APP` - In-app
+    RoleEnum:
+      enum:
+      - USER
+      - ADMIN
+      type: string
+      description: |-
+        * `USER` - Standard user
+        * `ADMIN` - Administrator
+    SignupRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+      required:
+      - email
+      - full_name
+      - password
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+      required:
+      - email
+      - full_name
+      - id
+    Wellness:
+      type: object
+      properties:
+        activity_level:
+          oneOf:
+          - $ref: '#/components/schemas/ActivityLevelEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        diet_preference:
+          oneOf:
+          - $ref: '#/components/schemas/DietPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        sleep_goal_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,2}(?:\.\d{0,1})?$
+          nullable: true
+        reminder_channel:
+          oneOf:
+          - $ref: '#/components/schemas/ReminderChannelEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        wellness_goals:
+          type: string
+          maxLength: 500
+        allergy_notes:
+          type: string
+          maxLength: 1000
+        condition_notes:
+          type: string
+          maxLength: 1000
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - updated_at
+  securitySchemes:
+    adminSessionCookie:
+      type: apiKey
+      in: cookie
+      name: admin_session
+      description: Server-side session set by POST /api/admin/login as an HttpOnly
+        cookie.
+    memberJwtCookie:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: Short-lived JWT set by POST /api/auth/user/login as an HttpOnly
+        cookie.

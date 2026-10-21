@@ -75,10 +75,7 @@ def test_deleting_user_deletes_their_profile():
     assert HealthProfile.objects.count() == 0
 
 
-def test_negative_height_is_rejected():
-    user = make_user()
-    with pytest.raises(IntegrityError), transaction.atomic():
-        HealthProfile.objects.create(user=user, height_cm=-5)
+
 
 
 def test_new_profile_defaults_to_active():

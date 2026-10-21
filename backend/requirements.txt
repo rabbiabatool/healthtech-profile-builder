@@ -5,3 +5,4 @@ django-environ>=0.11
 psycopg[binary]>=3.2
 pytest>=8.0
 pytest-django>=4.8
+drf-spectacular[sidecar]>=0.28
