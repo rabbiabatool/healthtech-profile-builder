@@ -7,7 +7,7 @@ from drf_spectacular.generators import SchemaGenerator
 pytestmark = pytest.mark.django_db
 
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
-CSRF_EXEMPT = {("/api/auth/signup", "post"), ("/api/auth/user/login", "post")}
+CSRF_EXEMPT = {("/api/auth/signup", "post")}
 
 EXPECTED_OPERATIONS = {
     ("/api/auth/csrf", "get"),

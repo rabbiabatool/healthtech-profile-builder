@@ -14,6 +14,8 @@ SIGNUP_URL = "/api/auth/signup"
 REFRESH_URL = "/api/auth/refresh"
 LOGOUT_URL = "/api/auth/user/logout"
 ME_URL = "/api/profiles/me"
+LOGIN_URL = "/api/auth/user/login"
+CSRF_URL = "/api/auth/csrf"
 
 
 def signup_payload(**overrides):
@@ -226,3 +228,54 @@ def test_logout_requires_csrf_token_in_browser_mode(csrf_client, user, login, cs
     assert csrf_client.post(LOGOUT_URL).status_code == 403
     response = csrf_client.post(LOGOUT_URL, **csrf_header(csrf_client))
     assert response.status_code == 204
+
+# ---------- CSRF on member login ----------
+
+
+def login_body():
+    return {"email": "sara@example.com", "password": PASSWORD}
+
+
+def test_member_login_without_a_csrf_token_is_rejected(csrf_client, user):
+    response = csrf_client.post(LOGIN_URL, login_body(), format="json")
+    assert response.status_code == 403
+    assert response.json()["detail"].startswith("CSRF Failed")
+    assert "access_token" not in csrf_client.cookies
+    assert "refresh_token" not in csrf_client.cookies
+
+
+def test_member_login_with_a_forged_csrf_token_is_rejected(csrf_client, user):
+    csrf_client.get(CSRF_URL)
+    response = csrf_client.post(LOGIN_URL, login_body(), format="json", HTTP_X_CSRFTOKEN="a" * 64)
+    assert response.status_code == 403
+    assert response.json()["detail"].startswith("CSRF Failed")
+    assert "access_token" not in csrf_client.cookies
+    assert "refresh_token" not in csrf_client.cookies
+
+
+def test_member_login_with_a_valid_csrf_token_is_accepted(csrf_client, user, csrf_header):
+    response = csrf_client.post(LOGIN_URL, login_body(), format="json", **csrf_header(csrf_client))
+    assert response.status_code == 200
+    assert csrf_client.cookies["access_token"]["httponly"]
+    assert csrf_client.cookies["refresh_token"]["httponly"]
+
+
+@pytest.mark.parametrize("origin, expected", [("https://evil.example", 403), ("http://testserver", 200)])
+def test_member_login_checks_the_origin_header(csrf_client, user, csrf_header, origin, expected):
+    response = csrf_client.post(
+        LOGIN_URL, login_body(), format="json", HTTP_ORIGIN=origin, **csrf_header(csrf_client)
+    )
+    assert response.status_code == expected
+
+
+def test_csrf_check_runs_before_credentials_are_examined(csrf_client, user, monkeypatch):
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("credentials were examined before the CSRF check")
+
+    monkeypatch.setattr("accounts.views.authenticate", must_not_run)
+    assert csrf_client.post(LOGIN_URL, login_body(), format="json").status_code == 403
+
+
+def test_signup_remains_csrf_exempt_by_decision(csrf_client):
+    payload = {"full_name": "Fictional Member", "email": "fictional.member@example.com", "password": PASSWORD}
+    assert csrf_client.post("/api/auth/signup", payload, format="json").status_code == 201

@@ -77,13 +77,15 @@ document(
     account_views.UserLoginView,
     "post",
     summary="Member login",
-    description="On success sets the access_token and refresh_token HttpOnly cookies. No token is returned in the body.",
+    description="Requires a valid CSRF token and matching origin. On success sets the access_token and refresh_token HttpOnly cookies. No token is returned in the body.",
     tags=[MEMBER_AUTH],
     request=LoginSerializer,
+    parameters=[CSRF_HEADER],
     responses={
         200: inline_serializer("MemberLogin", {"user": UserSerializer()}),
         400: BAD_REQUEST,
         401: OpenApiResponse(description="Invalid email or password."),
+        403: FORBIDDEN,
     },
 )
 document(

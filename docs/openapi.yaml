@@ -552,9 +552,17 @@ paths:
   /api/auth/user/login:
     post:
       operationId: auth_user_login_create
-      description: On success sets the access_token and refresh_token HttpOnly cookies.
-        No token is returned in the body.
+      description: Requires a valid CSRF token and matching origin. On success sets
+        the access_token and refresh_token HttpOnly cookies. No token is returned
+        in the body.
       summary: Member login
+      parameters:
+      - in: header
+        name: X-CSRFToken
+        schema:
+          type: string
+        description: CSRF token from GET /api/auth/csrf (or /api/admin/csrf).
+        required: true
       tags:
       - Authentication (members)
       requestBody:
@@ -576,6 +584,9 @@ paths:
           description: Validation failed. The body maps field names to lists of messages.
         '401':
           description: Invalid email or password.
+        '403':
+          description: 'Not allowed: wrong role, deactivated profile or missing CSRF
+            token.'
   /api/auth/user/logout:
     post:
       operationId: auth_user_logout_create
