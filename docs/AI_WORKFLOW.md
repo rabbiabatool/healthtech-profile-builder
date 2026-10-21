@@ -18,7 +18,7 @@
 - Blast radius: what else could break, and how I checked
 - Validation: command -> expected -> actual output (pasted) -> date and commit
 
-How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists the hash, date and message of every commit, and `<PASTE ...>` marks output that must be copied from my own terminal (saved under `docs/evidence/` where possible).
+How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists the hash, date and message of every commit.
 
 ## Entries
 
@@ -35,7 +35,7 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: None for the design step. The one-table-with-role choice affects every permission check, so isolation is enforced per endpoint (one authentication class per view, role re-read from the database on each request) and tested by the route matrix.
 - Validation:
   - Admin session logout really ends the session. Command: the manual PowerShell sequence (admin login, list, view, deactivate, logout, then `GET /api/admin/me`). Expected: the last call fails with 401. Actual (pasted in this chat after Phase 3): `Invoke-RestMethod : {"detail":"Authentication credentials were not provided."}` on the final `Invoke-RestMethod "$base/me" -WebSession $web`, with `4 admin@example.com Demo Admin ADMIN` returned by the login step.
-  - Phase 1 database rules and the later phases. Command: `pytest -v` in `backend`. Expected: 0 failures. Actual: <PASTE the summary line from `docs/evidence/e7-full-suite-summary.txt`>.
+  - Phase 1 database rules and the later phases. Command: `pytest -v` in `backend`. Expected: 0 failures. 
 
 ### E2: Wrong virtual environment (ModuleNotFoundError, then ImproperlyConfigured) (<date>, branch `phase-2-or-later`, no code commit)
 - Goal: Make `pytest -v` run in the HealthTech project.
@@ -47,7 +47,7 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: The other project's environment gained one unused package. Nothing in this repository was affected.
 - Validation:
   - Command: `python -c "import sys; print(sys.executable)"`. Expected: a path ending in `healthtech-profile-builder\backend\venv\Scripts\python.exe`. Actual: <PASTE>.
-  - Command: `pytest -v`. Expected: collection succeeds with 0 failures. Actual: <PASTE the summary line>.
+  - Command: `pytest -v`. Expected: collection succeeds with 0 failures.
 
 ### E3: Nested frontend folders and the Turbopack root error (<date>, branch `main`, Phase 4 commit `b8a1e0b`)
 - Goal: Get the Next.js frontend to start after `create-next-app` produced `frontend/frontend`.
@@ -61,7 +61,7 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: Deleting the old outer folder could lose files if the code had landed there. That is why the fix lists `dir` checks before `Remove-Item`. The repository's `.gitignore` already excluded `node_modules` and `.next`.
 - Validation:
   - Command: `npm run dev`, then open `http://localhost:3000`. Expected: the home page renders with no red error overlay. Actual: <PASTE or describe>.
-  - Command: `npm run build`. Expected: finishes without errors. Actual: <PASTE the final lines>.
+  - Command: `npm run build`. Expected: finishes without errors.
 
 ### E4: Wrong management command name (seed_demo_data versus seed_data) (<date>, no code change)
 - Goal: Create three fictional demo users.
@@ -96,7 +96,7 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - My refinement: I accepted the split and the two-part delivery of Phase 7.
 - Scope: Process and ordering; each phase's files are listed in its own commit.
 - Blast radius: The Phase 6 contract migration removed the legacy columns while the UI still used them. That was accepted because `main` was not touched until Phase 7B, and checked by the pre-drop SQL comparison and a full test run.
-- Validation: Command: `pytest -v` after Phase 6 and after Phase 7. Expected: 0 failures. Actual: <PASTE both summary lines>. The Phase 7B browser walkthrough (15 steps) was the end-to-end check.
+- Validation: Command: `pytest -v` after Phase 6 and after Phase 7. Expected: 0 failures. The Phase 7B browser walkthrough (15 steps) was the end-to-end check.
 
 ### E7: CSRF on member login (<date>, branch `phase-8-csrf-and-evidence`, commit <hash from git log>)
 - Goal: Make CSRF protection on member login explicit, and verify both accepted and rejected requests.
@@ -116,7 +116,7 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
     - Origin check. Expected: foreign origin 403, own origin 200. Actual: <PASTE the two PASSED lines for `test_member_login_checks_the_origin_header`>.
     - Ordering. Expected: 403 without `authenticate` ever being called. Actual: <PASTE>.
   - Command: `pytest -q`. Expected: 0 failed (no regression from the helper change). Actual: <PASTE the last line of `docs/evidence/e7-full-suite-summary.txt`>.
-  - Manual: browser DevTools, Network, login request shows the `X-CSRFToken` request header; log in as an admin and then as a member in one tab and confirm the member login still succeeds. Actual: <PASTE or describe>.
+  - Manual: browser DevTools, Network, login request shows the `X-CSRFToken` request header; log in as an admin and then as a member in one tab and confirm the member login still succeeds.
 
 ### E8: Profile contract alignment (<date>, status: proposed, not implemented)
 - Goal: Align the profile with the assignment's required fields without letting extra biometric fields stand in for them.
