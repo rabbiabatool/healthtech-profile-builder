@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.models import AuditAction, Outcome
+from audit.services import record_event
+
 from .authentication import AdminSessionAuthentication, enforce_csrf
 from .models import Role
 from .permissions import IsAdminRole
@@ -28,12 +31,14 @@ class AdminLoginView(APIView):
             password=serializer.validated_data["password"],
         )
         if user is None or user.role != Role.ADMIN:
+            record_event(None, AuditAction.ADMIN_LOGIN_FAILED, outcome=Outcome.FAILED)
             return Response(
                 {"detail": INVALID_LOGIN_MESSAGE},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         login(request, user)
+        record_event(user, AuditAction.ADMIN_LOGIN)
         return Response(
             {
                 "user": AdminUserSerializer(user).data,
@@ -47,6 +52,7 @@ class AdminLogoutView(APIView):
     permission_classes = [IsAdminRole]
 
     def post(self, request):
+        record_event(request.user, AuditAction.ADMIN_LOGOUT)
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

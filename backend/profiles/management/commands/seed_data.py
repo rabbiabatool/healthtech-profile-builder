@@ -122,13 +122,6 @@ class Command(BaseCommand):
             profile_objects.append(
                 HealthProfile(
                     user=user,
-                    date_of_birth=demographics["date_of_birth"],
-                    blood_group=demographics["blood_group"],
-                    height_cm=demographics["height_cm"],
-                    weight_kg=demographics["weight_kg"],
-                    allergies=wellness["allergy_notes"],
-                    conditions=wellness["condition_notes"],
-                    emergency_contact=contacts[0]["name"] if contacts else "",
                     status=ProfileStatus.ACTIVE if rng.random() < 0.85 else ProfileStatus.INACTIVE,
                     completion_percent=result.percent,
                     completion_status=result.status,

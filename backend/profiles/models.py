@@ -70,17 +70,6 @@ class HealthProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="profile",
     )
-
-    # Legacy flat fields. Migration 0004 copies them into the section tables below,
-    # and Phase 6 removes them once the API no longer uses them.
-    date_of_birth = models.DateField(null=True, blank=True)
-    blood_group = models.CharField(max_length=3, choices=BloodGroup.choices, blank=True)
-    height_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    weight_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    allergies = models.TextField(blank=True)
-    conditions = models.TextField(blank=True)
-    emergency_contact = models.CharField(max_length=100, blank=True)
-
     status = models.CharField(
         max_length=10,
         choices=ProfileStatus.choices,
@@ -105,14 +94,6 @@ class HealthProfile(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(height_cm__isnull=True) | models.Q(height_cm__gt=0),
-                name="profile_height_positive",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(weight_kg__isnull=True) | models.Q(weight_kg__gt=0),
-                name="profile_weight_positive",
-            ),
-            models.CheckConstraint(
                 condition=models.Q(status__in=ProfileStatus.values),
                 name="profile_status_is_valid",
             ),
@@ -128,8 +109,7 @@ class HealthProfile(models.Model):
 
     def __str__(self):
         return f"Profile of {self.user_id}"
-
-
+    
 class Demographics(models.Model):
     profile = models.OneToOneField(
         HealthProfile,
