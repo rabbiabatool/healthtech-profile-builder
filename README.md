@@ -1,21 +1,31 @@
 # HealthTech Profile Builder
 
-A small full-stack demo with **two separate authentication flows**:
+A full-stack demo with **two separate authentication flows**, a relational patient-profile model, and an **audit trail**:
 
 - **Members** self-register and sign in with **JWT stored in HttpOnly cookies**.
 - **Admins** are created from the command line and sign in with **server-side sessions**.
 
 All data is **fictional**. Do not enter real health information.
 
+## Features
+
+- Member sections: demographics, up to three emergency contacts (one primary), wellness preferences, and a stored **profile completion** status
+- Admin dashboard: search, filters (status, completion, dates), ordering, pagination, read-only profile details, deactivate and reactivate
+- **Audit events** for member edits and admin actions: who, what kind, which profile, which **field names** changed. Never the values
+- OpenAPI/Swagger documentation, EXPLAIN evidence for indexed lookups, and a large automated test suite
+- Accessible, responsive interface with dark mode
+
 ## Tech stack
 
 | Layer | Technology | Why |
 |---|---|---|
-| Backend | Django 5.2 + Django REST Framework | Battle-tested password hashing, sessions, CSRF and ORM/migrations |
-| JWT | djangorestframework-simplejwt | Short-lived access tokens, refresh rotation and blacklist |
-| Database | PostgreSQL | Real constraints, partial/composite indexes, `EXPLAIN ANALYZE` |
-| Frontend | Next.js (App Router) + plain CSS | Minimal, accessible, responsive UI; server-side proxy for same-origin cookies |
-| Tests | pytest + pytest-django | Readable tests for auth, permissions and constraints |
+| Backend | Django 5.2 + Django REST Framework | Password hashing, sessions, CSRF, ORM and migrations built in |
+| JWT | djangorestframework-simplejwt | Short-lived access tokens, rotation and blacklist |
+| Filtering | django-filter | Declarative, validated filters shown in the API docs |
+| API docs | drf-spectacular (+ sidecar) | OpenAPI schema and self-hosted Swagger UI |
+| Database | PostgreSQL | Real constraints, partial and composite indexes, `EXPLAIN ANALYZE` |
+| Frontend | Next.js (App Router) + plain CSS | Server-side proxy gives same-origin cookies |
+| Tests | pytest + pytest-django | Auth, permissions, constraints, audit and docs |
 
 ## Architecture
 
@@ -32,29 +42,32 @@ The browser only talks to Next.js. Next.js forwards `/api/*` to Django, so cooki
 
 ### Members: JWT in HttpOnly cookies
 
-- `POST /api/auth/user/login` validates credentials and sets two cookies: `access_token` (10 minutes, path `/`) and `refresh_token` (1 day, path `/api/auth/`). Both are `HttpOnly` and `SameSite=Lax` (`Secure` in production). **No token is ever returned in the response body.**
-- **Where tokens live:** only in HttpOnly cookies, never in `localStorage` or JavaScript memory.
-- **How they are sent:** the browser attaches the cookies automatically. A custom DRF authentication class reads the access cookie.
-- **Claims:** only `user_id`, `token_type`, `exp`, `iat`, `jti`. Never passwords or secrets. The role is read from the database on every request.
-- **Expiry:** an expired access token returns `401`. The frontend calls `POST /api/auth/refresh` once and retries. Refresh tokens **rotate** and the old one is **blacklisted**, so a stolen refresh token only works once.
-- **Logout:** `POST /api/auth/user/logout` blacklists the refresh token and clears both cookies. Limitation: an access token that was already copied stays valid until its 10 minutes end (JWTs are stateless), which is why the lifetime is short.
-- **CSRF:** cookies are sent automatically, so every state-changing request must include an `X-CSRFToken` header (token from `GET /api/auth/csrf`).
-
-**XSS notes.** If tokens were kept in `localStorage`, any injected script could read and steal them. HttpOnly cookies cannot be read by JavaScript, so an XSS bug cannot exfiltrate them (it could still make requests while the page is open, which is why we also keep output escaped and tokens short-lived). Mitigations in this project: HttpOnly cookies, React's automatic escaping with no `dangerouslySetInnerHTML`, a JSON-only API, `nosniff`/`X-Frame-Options`/`Referrer-Policy` headers, and short token lifetimes. A strict Content-Security-Policy is the recommended next hardening step for production.
+- `POST /api/auth/user/login` sets `access_token` (10 minutes, path `/`) and `refresh_token` (1 day, path `/api/auth/`). Both are `HttpOnly`, `SameSite=Lax` (`Secure` in production). **No token is ever returned in a response body** and none is stored in `localStorage`.
+- A custom DRF authentication class reads the access cookie. Claims are only `user_id`, `token_type`, `exp`, `iat`, `jti`. The role is read from the database on every request.
+- Expiry: `401` on an expired token, then the frontend calls `POST /api/auth/refresh` once and retries. Refresh tokens **rotate** and the old one is **blacklisted**. Logout revokes the refresh token and clears both cookies. An access token already copied stays valid until its 10 minutes end (JWTs are stateless), so the lifetime is short.
+- CSRF: state-changing requests need an `X-CSRFToken` header (token from `GET /api/auth/csrf`).
+- XSS: HttpOnly cookies cannot be read by injected scripts. Further mitigations: React's automatic escaping (no `dangerouslySetInnerHTML`), a JSON-only API, `nosniff`, `X-Frame-Options` and `Referrer-Policy` headers, and short token lifetimes. A strict Content-Security-Policy is the recommended next hardening step.
 
 ### Admins: database-created, session login
 
-- There is **no public admin signup route**. Admins are created with `python manage.py create_admin` (password typed at a hidden prompt, validated by Django's password rules).
-- `POST /api/admin/login` (CSRF required) creates a server-side session row in `django_session` and sets the `admin_session` cookie (`HttpOnly`, `SameSite=Lax`, 1 hour). Django rotates the session ID on login (prevents session fixation).
-- `POST /api/admin/logout` deletes the session row.
-- Every admin endpoint uses **session authentication only** plus a server-side `role == ADMIN` check on each request. Changing a user's role takes effect immediately.
-- **Isolation:** a member JWT cannot reach any `/api/admin/*` endpoint, an admin session cannot reach `/api/profiles/me`, and faking cookies, headers or frontend state grants nothing, because the server only trusts the session row.
+- There is **no public admin signup**. Admins are created with `python manage.py create_admin`.
+- `POST /api/admin/login` (CSRF required) creates a server-side session row and sets the `admin_session` cookie (`HttpOnly`, `SameSite=Lax`, 1 hour). Django rotates the session id on login.
+- Every admin endpoint uses **session authentication only** plus a server-side `role == ADMIN` check per request. Demoting an admin takes effect immediately.
+- **Isolation:** a member JWT cannot reach any `/api/admin/*` endpoint, an admin session cannot reach member endpoints, and faked cookies, headers or frontend state grant nothing.
+
+### Horizontal privilege escalation
+
+Member routes never accept a profile id. Everything is resolved through the logged-in user, and an emergency contact is looked up only among **that member's own** contacts, so another member's id returns `404`. A route-matrix test crosses every endpoint with four callers (anonymous, member A, member B, admin).
 
 ## Database
 
 ```mermaid
 erDiagram
-    USERS ||--o| HEALTH_PROFILES : "has one"
+    USERS ||--|| HEALTH_PROFILES : "owns"
+    HEALTH_PROFILES ||--|| PROFILE_DEMOGRAPHICS : "has"
+    HEALTH_PROFILES ||--|| WELLNESS_PREFERENCES : "has"
+    HEALTH_PROFILES ||--o{ EMERGENCY_CONTACTS : "has up to 3"
+    USERS |o--o{ AUDIT_EVENTS : "acts in (nullable)"
     USERS ||--o{ OUTSTANDING_TOKENS : "issued"
     OUTSTANDING_TOKENS ||--o| BLACKLISTED_TOKENS : "revoked as"
 
@@ -65,56 +78,82 @@ erDiagram
         varchar full_name
         varchar role "USER or ADMIN"
         boolean is_active
-        boolean is_staff
-        boolean is_superuser
         timestamptz created_at
-        timestamptz last_login
     }
     HEALTH_PROFILES {
         bigint id PK
-        bigint user_id FK "unique, ON DELETE CASCADE"
-        date date_of_birth
-        varchar blood_group
-        decimal height_cm
-        decimal weight_kg
-        text allergies
-        text conditions
-        varchar emergency_contact
+        bigint user_id FK "unique, CASCADE"
         varchar status "ACTIVE or INACTIVE"
+        smallint completion_percent
+        varchar completion_status "NOT_STARTED, IN_PROGRESS, COMPLETE"
         timestamptz created_at
         timestamptz updated_at
     }
-    OUTSTANDING_TOKENS {
+    PROFILE_DEMOGRAPHICS {
         bigint id PK
-        bigint user_id FK "nullable"
-        varchar jti UK
-        timestamptz expires_at
+        bigint profile_id FK "unique, CASCADE"
+        date date_of_birth
+        varchar gender
+        varchar blood_group
+        decimal height_cm
+        decimal weight_kg
+        varchar country
+        varchar preferred_language
     }
-    BLACKLISTED_TOKENS {
+    EMERGENCY_CONTACTS {
         bigint id PK
-        bigint token_id FK "unique"
-        timestamptz blacklisted_at
+        bigint profile_id FK "CASCADE"
+        varchar name
+        varchar relationship
+        varchar phone
+        varchar email
+        boolean is_primary "one per profile (partial unique)"
     }
-    DJANGO_SESSION {
-        varchar session_key PK
-        text session_data "signed, holds the admin id"
-        timestamptz expire_date
+    WELLNESS_PREFERENCES {
+        bigint id PK
+        bigint profile_id FK "unique, CASCADE"
+        varchar activity_level
+        varchar diet_preference
+        decimal sleep_goal_hours
+        varchar reminder_channel
+        text wellness_goals
+        text allergy_notes
+        text condition_notes
+    }
+    AUDIT_EVENTS {
+        bigint id PK
+        timestamptz created_at
+        bigint actor_id FK "nullable, SET NULL"
+        varchar actor_role
+        varchar action
+        varchar outcome
+        bigint profile_id "plain number, deliberately not a FK"
+        jsonb changed_fields "field names only"
+        jsonb metadata "allowlisted keys only"
     }
 ```
 
-`DJANGO_SESSION` has no foreign key: Django stores the logged-in admin's id inside the signed session data.
+`django_session` (admin sessions) has no foreign key: Django stores the admin's id inside the signed session data. Audit events keep `profile_id` as a plain number so the log outlives the profile it describes.
 
-### Constraints and indexes (each has a use case)
+### Constraints
 
-| Index / constraint | Why it exists |
+- Case-insensitive unique email (unique + a check that the stored email is lowercase)
+- One primary contact per profile (partial unique index); no duplicate phone per profile (partial unique index ignoring blanks); at most three contacts (enforced in a transaction that locks the profile row)
+- Check constraints for ranges (height, weight, sleep goal), valid choices, and `completion_percent` always agreeing with `completion_status`
+- Audit events are **append-only**: the model and manager refuse updates and deletes (in production also revoke `UPDATE`/`DELETE` on the table from the app's database user)
+
+### Indexes (each tied to a query)
+
+| Index | Query it serves |
 |---|---|
-| Unique `users.email` + check `email = lower(email)` | Case-insensitive unique email; fast login lookup |
-| Unique `health_profiles.user_id` | One profile per user; fast `GET /profiles/me` |
-| Composite `idx_profile_status_created_id` on `(status, created_at DESC, id DESC)` | Admin list "profiles by status, newest first, one page" with a stable tie-breaker for pagination |
-| Check constraints (role, status, positive height/weight) | The database rejects bad data even if application code is bypassed |
-| `ON DELETE CASCADE` on profile → user | A profile never outlives its owner |
+| Unique `users.email` | Login lookup; duplicate check |
+| Unique `profile_id` on each one-to-one section | Loading a member's own sections |
+| `idx_profile_status_created_id` on `(status, created_at DESC, id DESC)` | Admin list: profiles by status, newest first, stable paging |
+| Partial unique indexes on `emergency_contacts` | Contact rules above; finding the primary contact |
+| `idx_audit_profile_newest` on `(profile_id, id DESC)` | **One profile's audit timeline** |
+| `idx_audit_action_newest` on `(action, id DESC)` | Audit feed filtered by action |
 
-Name/email search uses `icontains`, which a normal index cannot speed up. No index was added for it (no demonstrated need). If search ever becomes slow at scale, PostgreSQL `pg_trgm` is the upgrade path.
+The audit feed's default view (newest first, unfiltered) is served by the primary key, because ids grow with time in an append-only table. Name and email search uses `icontains`, which a normal index cannot serve. No index was added for it (no demonstrated need); `pg_trgm` is the upgrade path at scale.
 
 ### EXPLAIN evidence
 
@@ -123,103 +162,127 @@ cd backend
 python manage.py seed_data --count 5000
 python manage.py explain_admin_list
 python manage.py explain_admin_list --without-index
+python manage.py seed_audit_events --count 50000
+python manage.py explain_audit_timeline
+python manage.py explain_audit_timeline --without-index
 ```
 
-Saved plans are in `docs/explain-with-index.txt` and `docs/explain-without-index.txt`. With the index the plan uses an index scan; without it, a sequential scan plus sort.
+Saved plans live in `docs/explain-with-index.txt`, `docs/explain-without-index.txt`, `docs/explain-audit-with-index.txt` and `docs/explain-audit-without-index.txt`. With the index the plans use an index scan. Without it, PostgreSQL falls back to a sequential scan with a sort, or walks the primary key and discards non-matching rows.
+
+## Audit events
+
+Recorded: member edits (demographics, wellness, emergency contacts) and admin actions (login, failed login, logout, profile viewed, search performed, deactivate, reactivate). Each event stores the actor id and role, the action, the outcome, the profile id and the **names** of changed fields. Never stored: saved values, passwords, tokens, search terms or attempted login emails.
+
+- One function (`record_event`) is the only writer, with allowlists for field names and metadata keys. Anything else is refused, and error messages never echo the rejected value.
+- Events are written in the **same transaction** as the change, so there is no edit without a record. A test forces the audit write to fail and checks that the edit rolls back.
+- Admin audit endpoints are read-only and use cursor pagination.
+
+## API documentation
+
+- Interactive docs (development only): `http://127.0.0.1:8000/api/docs/` (Swagger UI) and `/api/redoc/`. They are not served when `DEBUG` is off.
+- The generated schema is committed as `docs/openapi.yaml`. Regenerate it with:
+
+```powershell
+cd backend
+python manage.py spectacular --file ..\docs\openapi.yaml --validate
+```
+
+A test fails if a public endpoint is undocumented, an operation lacks a summary or tag, a state-changing operation does not document the CSRF header, or a password appears in a response schema.
 
 ## API reference
 
-Base path: `/api`. All bodies are JSON. State-changing requests need the `X-CSRFToken` header (from `GET /api/auth/csrf` or `/api/admin/csrf`).
+All bodies are JSON. State-changing requests need `X-CSRFToken`. Unauthenticated requests return `401`. A signed-in caller without the right role, a missing CSRF token or a deactivated profile returns `403`.
 
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| GET | `/auth/csrf` | none | CSRF token + cookie |
-| POST | `/auth/signup` | none | Register a member |
-| POST | `/auth/user/login` | none | Member login (sets JWT cookies) |
-| POST | `/auth/refresh` | refresh cookie + CSRF | Rotate tokens |
-| POST | `/auth/user/logout` | CSRF | Revoke refresh token, clear cookies |
-| GET | `/profiles/me` | member JWT cookie | View own profile |
-| PATCH | `/profiles/me` | member JWT cookie + CSRF | Edit own profile |
-| GET | `/admin/csrf` | none | CSRF token + cookie |
-| POST | `/admin/login` | CSRF | Admin login (sets session cookie) |
-| POST | `/admin/logout` | admin session + CSRF | Destroy session |
-| GET | `/admin/me` | admin session | Current admin |
-| GET | `/admin/profiles?search=&status=&page=&page_size=` | admin session | List/search profiles |
-| GET | `/admin/profiles/{id}` | admin session | Profile details |
-| PATCH | `/admin/profiles/{id}/deactivate` | admin session + CSRF | Set status INACTIVE |
-| PATCH | `/admin/profiles/{id}/reactivate` | admin session + CSRF | Set status ACTIVE |
-
-Unauthenticated requests return `401`; authenticated users without the right role or a missing CSRF token return `403`.
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/auth/csrf`, `/api/admin/csrf` | none |
+| POST | `/api/auth/signup` | none |
+| POST | `/api/auth/user/login` | none |
+| POST | `/api/auth/refresh` | refresh cookie + CSRF |
+| POST | `/api/auth/user/logout` | CSRF |
+| GET | `/api/profiles/me` | member JWT |
+| GET, PATCH, DELETE | `/api/profiles/me/demographics` | member JWT (+ CSRF for writes) |
+| GET, PATCH, DELETE | `/api/profiles/me/wellness` | member JWT (+ CSRF for writes) |
+| GET, POST | `/api/profiles/me/emergency-contacts` | member JWT (+ CSRF for POST) |
+| GET, PATCH, DELETE | `/api/profiles/me/emergency-contacts/{id}` | member JWT (+ CSRF for writes) |
+| POST | `/api/admin/login` | CSRF |
+| POST | `/api/admin/logout` | admin session + CSRF |
+| GET | `/api/admin/me` | admin session |
+| GET | `/api/admin/profiles?search=&status=&completion_status=&created_after=&created_before=&ordering=&page=&page_size=` | admin session |
+| GET | `/api/admin/profiles/{id}` | admin session |
+| PATCH | `/api/admin/profiles/{id}/deactivate` and `/reactivate` | admin session + CSRF |
+| GET | `/api/admin/audit-events?action=&outcome=&actor_id=&profile_id=&created_after=&created_before=&cursor=&page_size=` | admin session |
+| GET | `/api/admin/profiles/{id}/audit-events` | admin session |
 
 ### Samples
 
-`POST /api/auth/signup`
+`GET /api/profiles/me` (member)
 
 ```json
-{ "full_name": "Sara Demo", "email": "sara@example.com", "password": "Str0ng!Pass#2026" }
-```
-
-```json
-201 { "id": 7, "email": "sara@example.com", "full_name": "Sara Demo" }
-400 { "email": ["An account with this email already exists."] }
-```
-
-`POST /api/auth/user/login` (sets `access_token` and `refresh_token` cookies)
-
-```json
-{ "email": "sara@example.com", "password": "Str0ng!Pass#2026" }
-```
-
-```json
-200 { "user": { "id": 7, "email": "sara@example.com", "full_name": "Sara Demo" } }
-401 { "detail": "Invalid email or password." }
-```
-
-`GET /api/profiles/me`
-
-```json
-200 {
-  "id": 7, "full_name": "Sara Demo", "email": "sara@example.com",
-  "date_of_birth": "1995-04-12", "blood_group": "O+",
-  "height_cm": "172.5", "weight_kg": "64.0",
-  "allergies": "Fictional pollen sensitivity", "conditions": "",
-  "emergency_contact": "Fictional Contact 555-0100",
+{
+  "id": 7,
+  "full_name": "Sara Demo",
+  "email": "sara@example.com",
   "status": "ACTIVE",
-  "created_at": "2026-10-17T09:30:00Z", "updated_at": "2026-10-17T09:41:12Z"
+  "completion": {
+    "percent": 50,
+    "status": "IN_PROGRESS",
+    "missing": [
+      { "key": "emergency_contact", "label": "An emergency contact with a phone number" },
+      { "key": "primary_contact", "label": "A primary emergency contact" }
+    ]
+  },
+  "demographics": { "date_of_birth": "1995-04-12", "gender": "FEMALE", "blood_group": "O+", "height_cm": "172.5", "weight_kg": "64.0", "country": "Canada", "preferred_language": "English", "updated_at": "2026-10-21T09:41:12Z" },
+  "emergency_contacts": [],
+  "wellness": { "activity_level": "", "diet_preference": "", "sleep_goal_hours": null, "reminder_channel": "", "wellness_goals": "", "allergy_notes": "", "condition_notes": "", "updated_at": "2026-10-21T09:30:00Z" },
+  "created_at": "2026-10-21T09:30:00Z",
+  "updated_at": "2026-10-21T09:30:00Z"
 }
 ```
 
-`PATCH /api/profiles/me`
+`PATCH /api/profiles/me/demographics`
 
 ```json
-{ "blood_group": "O+", "height_cm": "172.5" }
+{ "country": "Canada", "height_cm": "172.5" }
 ```
 
 ```json
-200 (updated profile, same shape as above)
+200 (updated section)
 400 { "height_cm": ["Height must be between 30 and 272 cm."] }
 403 { "detail": "This profile has been deactivated." }
 ```
 
-`POST /api/admin/login`
+`POST /api/profiles/me/emergency-contacts`
 
 ```json
-{ "email": "admin@example.com", "password": "<admin password>" }
+{ "name": "Fictional Helper", "relationship": "FRIEND", "phone": "555-0101" }
 ```
 
 ```json
-200 { "user": { "id": 4, "email": "admin@example.com", "full_name": "Demo Admin", "role": "ADMIN" }, "csrfToken": "..." }
-401 { "detail": "Invalid email or password." }
+201 { "id": 31, "name": "Fictional Helper", "relationship": "FRIEND", "phone": "555-0101", "email": "", "is_primary": true, "created_at": "...", "updated_at": "..." }
+400 { "non_field_errors": ["You can save at most 3 emergency contacts."] }
+400 { "phone": ["This phone number is already saved for another contact."] }
+404 (another member's contact id)
 ```
 
-`GET /api/admin/profiles?status=ACTIVE&page=1&page_size=10`
+`GET /api/admin/profiles?completion_status=IN_PROGRESS&ordering=-completion_percent`
 
 ```json
-200 {
-  "count": 25, "next": "...?page=2", "previous": null,
+{
+  "count": 12, "next": "...?page=2", "previous": null,
   "results": [
-    { "id": 7, "user_id": 7, "full_name": "Sara Demo", "email": "sara@example.com",
-      "blood_group": "O+", "status": "ACTIVE", "created_at": "2026-10-17T09:30:00Z" }
+    { "id": 7, "user_id": 7, "full_name": "Sara Demo", "email": "sara@example.com", "status": "ACTIVE", "completion_percent": 50, "completion_status": "IN_PROGRESS", "created_at": "2026-10-21T09:30:00Z" }
+  ]
+}
+```
+
+`GET /api/admin/audit-events`
+
+```json
+{
+  "next": "...?cursor=cD0xMDQy", "previous": null,
+  "results": [
+    { "id": 1042, "created_at": "2026-10-21T10:15:03Z", "actor_id": 12, "actor_role": "USER", "action": "EMERGENCY_CONTACT_UPDATED", "outcome": "SUCCESS", "profile_id": 12, "changed_fields": ["phone", "relationship"], "metadata": { "section": "emergency_contacts", "contact_id": 31 } }
   ]
 }
 ```
@@ -253,18 +316,16 @@ npm run dev
 
 Open `http://localhost:3000` (use `localhost`, not `127.0.0.1`).
 
-### Environment variables (`backend/.env.example`)
-
 | Variable | Purpose |
 |---|---|
-| `DJANGO_SECRET_KEY` | Signs cookies, sessions and JWTs. Long and random. Never commit the real value. |
-| `DJANGO_DEBUG` | `True` for local development only |
-| `DJANGO_ALLOWED_HOSTS` | Hostnames Django will serve |
+| `DJANGO_SECRET_KEY` | Signs cookies, sessions and JWTs. Long, random, never committed |
+| `DJANGO_DEBUG` | `True` for local development only (also enables the API docs routes) |
+| `DJANGO_ALLOWED_HOSTS` | Hostnames Django serves |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_COOKIE_SECURE` | `False` on local HTTP, `True` in production (also applies to session and CSRF cookies) |
 | `CSRF_TRUSTED_ORIGINS` | Frontend origins allowed to send state-changing requests |
 
-The frontend can optionally use `BACKEND_URL` (default `http://127.0.0.1:8000`).
+The frontend optionally reads `BACKEND_URL` (default `http://127.0.0.1:8000`).
 
 ## Tests
 
@@ -273,27 +334,26 @@ cd backend
 pytest -v
 ```
 
-The suite covers signup validation, duplicate emails, hashed passwords, JWT expiry/tampering/wrong type, refresh rotation and blacklist, logout, CSRF enforcement, cross-user isolation, admin-only endpoints, session expiry and logout, role changes taking effect immediately, and that user JWTs never grant admin access.
+Coverage includes: signup validation, hashed passwords, JWT expiry, tampering and wrong type, refresh rotation, logout, CSRF, cross-user isolation, admin-only routes, session expiry, role changes taking effect immediately, a 72-case route matrix, section validation, the three-contact rule, completion, data migration, audit events (field names only, no leaked values, atomic with the edit, append-only), cursor pagination, filters, and API documentation checks.
 
-Frontend checks: `npm run lint`, `npm run build`, and the manual accessibility/responsive checklist.
+Frontend checks: `npm run lint`, `npm run build`, and the manual accessibility and responsive checklist.
 
 ## Security notes and known limitations
 
 - Secrets live in environment variables; `.env` is git-ignored.
-- Passwords are hashed with Django's PBKDF2 and validated against Django's password rules.
-- Login errors are generic. Signup reveals that an email is taken (required by the duplicate-email behavior).
-- Not implemented (good production next steps): login rate limiting/lockout, a strict Content-Security-Policy, audit logging of admin actions, email verification, HTTPS and secure deployment settings, `pg_trgm` for large-scale search.
+- Login errors are generic. Signup reveals that an email is taken.
+- Not implemented (good production next steps): login rate limiting and lockout, a strict Content-Security-Policy, email verification, HTTPS and secure deployment settings, revoking `UPDATE`/`DELETE` on the audit table from the app's database user, audit retention policy, `pg_trgm` for large-scale search.
 
 ## Acceptance checklist
 
-| Requirement | Where it is shown |
+| Requirement | Evidence |
 |---|---|
-| Member signup + JWT login | `/api/auth/*`, `tests/test_auth_user.py` |
-| Admin provisioning + session login | `create_admin`, `/api/admin/*`, `tests/test_admin_auth.py` |
-| Isolated permissions | `test_user_jwt_does_not_grant_admin_access`, `test_admin_session_cannot_use_user_endpoints` |
-| Profile CRUD (own profile) | `/api/profiles/me`, `tests/test_profile_me.py` |
-| Admin list/search/detail/deactivate | `/api/admin/profiles*`, `tests/test_admin_profiles.py` |
-| Migrations and justified indexes | `accounts/migrations`, `profiles/migrations`, `docs/explain-*.txt` |
-| Documented APIs | This README |
-| Synthetic data only | `seed_data`, UI notices |
-| Basic tests | `backend/tests` |
+| Signup + JWT login; admin provisioning + session login | `/api/auth/*`, `create_admin`, `/api/admin/*` |
+| User cannot access another user's profile or admin routes | Route matrix and cross-user tests |
+| Admin session and user JWT paths remain distinct | Matrix rows for every route, `test_admin_auth.py` |
+| Patient sections: demographics, emergency contact, wellness, completion | `profiles` models, member endpoints, tests |
+| User-owned CRUD; admin-only listing/search | `/api/profiles/me/*`, `/api/admin/profiles` |
+| Audit events excluding secrets and sensitive payloads | `audit` app and its leak-hunting tests |
+| Pagination, filtering, migrations, API documentation | Page and cursor pagination, `django-filter`, migrations `0001`-`0005`, `docs/openapi.yaml` |
+| Migrations, indexes and EXPLAIN evidence | Index table above, `docs/explain-*.txt` |
+| Hashed passwords, JWT expiry/refresh, secure token storage, CSRF for admin sessions | Authentication design above |
