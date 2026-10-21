@@ -104,3 +104,8 @@ export function errorMessage(error) {
   }
   return "Cannot reach the server. Please check that the backend is running.";
 }
+
+export function cursorOf(url) {
+  if (!url) return null;
+  return new URL(url).searchParams.get("cursor");
+}

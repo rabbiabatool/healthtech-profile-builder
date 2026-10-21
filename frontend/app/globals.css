@@ -250,6 +250,36 @@ tbody tr:last-child td { border-bottom: 0; }
 .detail-row dt { font-weight: 600; color: var(--muted); }
 .detail-row dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+progress {
+  display: block;
+  width: 100%;
+  height: 0.9rem;
+  accent-color: var(--primary);
+}
+.completion-figure { font-size: 1.5rem; margin-bottom: 0.5rem; }
+.checklist { margin: 0.25rem 0 0; padding-left: 1.25rem; }
+.checklist li { margin-bottom: 0.25rem; }
+.plain { list-style: none; padding: 0; margin: 0; }
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.contact:last-child { border-bottom: 0; }
+.mini-progress { display: grid; gap: 0.2rem; min-width: 7rem; }
+.mini-progress progress { height: 0.6rem; }
+.nav-links { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem; }
+.nav-links a { font-weight: 600; padding-block: 0.25rem; }
+.nav-links a[aria-current="page"] {
+  color: var(--text);
+  text-decoration-thickness: 3px;
+  text-decoration-color: var(--primary);
+}
+
 @media (max-width: 40rem) {
   .hide-sm { display: none; }
   .detail-row { grid-template-columns: 1fr; }

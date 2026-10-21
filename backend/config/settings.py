@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     "accounts",
     "profiles",
     "audit",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
 ]
 
 MIDDLEWARE = [
@@ -78,6 +80,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -107,3 +110,33 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = JWT_COOKIE_SECURE
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "HealthTech Profile Builder API",
+    "DESCRIPTION": (
+        "Fictional-data demo API with two separate sign-in flows. Members use short-lived JWTs "
+        "stored in HttpOnly cookies. Administrators use server-side sessions. Every state-changing "
+        "request needs an X-CSRFToken header (fetch one from GET /api/auth/csrf or /api/admin/csrf)."
+    ),
+    "VERSION": "2.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": "/api",
+    "ENUM_NAME_OVERRIDES": {
+        "ProfileStatusEnum": "profiles.models.ProfileStatus",
+        "CompletionStatusEnum": "profiles.models.CompletionStatus",
+        "BloodGroupEnum": "profiles.models.BloodGroup",
+        "GenderEnum": "profiles.models.Gender",
+        "ActivityLevelEnum": "profiles.models.ActivityLevel",
+        "DietPreferenceEnum": "profiles.models.DietPreference",
+        "ReminderChannelEnum": "profiles.models.ReminderChannel",
+        "RelationshipEnum": "profiles.models.Relationship",
+        "AuditActionEnum": "audit.models.AuditAction",
+        "ActorRoleEnum": "audit.models.ActorRole",
+        "OutcomeEnum": "audit.models.Outcome",
+        "RoleEnum": "accounts.models.Role",
+    },
+}

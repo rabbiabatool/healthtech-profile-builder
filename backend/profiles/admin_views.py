@@ -11,7 +11,7 @@ from audit.models import AuditAction
 from audit.services import FILTER_NAMES, record_event
 
 from .filters import AdminProfileFilter
-from .models import HealthProfile
+from .models import HealthProfile, ProfileStatus
 from .pagination import AdminPagination
 from .queries import admin_profile_queryset
 from .serializers import AdminProfileListSerializer, AdminProfileSerializer
@@ -80,3 +80,12 @@ class AdminProfileStatusView(APIView):
 
         profile = get_object_or_404(admin_detail_queryset(), pk=pk)
         return Response(AdminProfileSerializer(profile).data)
+
+class DeactivateProfileView(AdminProfileStatusView):
+    new_status = ProfileStatus.INACTIVE
+    audit_action = AuditAction.ADMIN_PROFILE_DEACTIVATED
+
+
+class ReactivateProfileView(AdminProfileStatusView):
+    new_status = ProfileStatus.ACTIVE
+    audit_action = AuditAction.ADMIN_PROFILE_REACTIVATED
