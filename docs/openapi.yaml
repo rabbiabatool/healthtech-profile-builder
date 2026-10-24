@@ -1214,6 +1214,18 @@ components:
         * `NOT_STARTED` - Not started
         * `IN_PROGRESS` - In progress
         * `COMPLETE` - Complete
+    ContactPreferenceEnum:
+      enum:
+      - EMAIL
+      - PHONE
+      - SMS
+      - NONE
+      type: string
+      description: |-
+        * `EMAIL` - Email
+        * `PHONE` - Phone call
+        * `SMS` - Text message
+        * `NONE` - Do not contact me
     CsrfToken:
       type: object
       properties:
@@ -1535,6 +1547,13 @@ components:
     PatchedWellnessRequest:
       type: object
       properties:
+        contact_preference:
+          oneOf:
+          - $ref: '#/components/schemas/ContactPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        wellness_goals:
+          type: string
+          maxLength: 500
         activity_level:
           oneOf:
           - $ref: '#/components/schemas/ActivityLevelEnum'
@@ -1552,9 +1571,6 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ReminderChannelEnum'
           - $ref: '#/components/schemas/BlankEnum'
-        wellness_goals:
-          type: string
-          maxLength: 500
         allergy_notes:
           type: string
           maxLength: 1000
@@ -1646,6 +1662,13 @@ components:
     Wellness:
       type: object
       properties:
+        contact_preference:
+          oneOf:
+          - $ref: '#/components/schemas/ContactPreferenceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        wellness_goals:
+          type: string
+          maxLength: 500
         activity_level:
           oneOf:
           - $ref: '#/components/schemas/ActivityLevelEnum'
@@ -1663,9 +1686,6 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ReminderChannelEnum'
           - $ref: '#/components/schemas/BlankEnum'
-        wellness_goals:
-          type: string
-          maxLength: 500
         allergy_notes:
           type: string
           maxLength: 1000

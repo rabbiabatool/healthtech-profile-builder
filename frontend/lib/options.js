@@ -25,6 +25,13 @@ export const REMINDER_CHANNELS = [
   ["SMS", "Text message"],
   ["APP", "In-app"],
 ];
+
+export const CONTACT_PREFERENCES = [
+  ["EMAIL", "Email"],
+  ["PHONE", "Phone call"],
+  ["SMS", "Text message"],
+  ["NONE", "Do not contact me"],
+];
 export const RELATIONSHIPS = [
   ["PARENT", "Parent"],
   ["SPOUSE", "Spouse or partner"],

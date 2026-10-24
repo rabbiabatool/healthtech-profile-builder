@@ -20,6 +20,7 @@ from profiles.models import (
     Relationship,
     ReminderChannel,
     WellnessPreferences,
+    ContactPreference,
 )
 
 FIRST_NAMES = ["Sara", "Ali", "Hina", "Omar", "Zara", "Bilal", "Maya", "Daniyal", "Noor", "Ayaan"]
@@ -28,7 +29,7 @@ ALLERGIES = ["", "", "Fictional pollen sensitivity", "Fictional dust sensitivity
 CONDITIONS = ["", "", "", "Fictional mild seasonal condition", "Fictional sample condition A"]
 COUNTRIES = ["Pakistan", "Canada", "Germany", "Brazil", "Japan"]
 LANGUAGES = ["English", "Urdu", "German", "Portuguese", "Japanese"]
-LEVELS = ["empty", "starter", "partial", "partial", "full", "full"]
+LEVELS = ["empty", "starter", "partial", "required_only", "required_only", "full"]
 
 
 def build_recipe(rng):
@@ -43,11 +44,12 @@ def build_recipe(rng):
         "preferred_language": "",
     }
     wellness = {
+        "contact_preference": "",
+        "wellness_goals": "",
         "activity_level": "",
         "diet_preference": "",
         "sleep_goal_hours": None,
         "reminder_channel": "",
-        "wellness_goals": "",
         "allergy_notes": "",
         "condition_notes": "",
     }
@@ -55,11 +57,9 @@ def build_recipe(rng):
 
     if level != "empty":
         demographics["date_of_birth"] = date(1960, 1, 1) + timedelta(days=rng.randint(0, 17000))
-        demographics["blood_group"] = rng.choice(BloodGroup.values)
 
-    if level in ("partial", "full"):
-        demographics["height_cm"] = Decimal(rng.randint(150, 195))
-        demographics["weight_kg"] = Decimal(rng.randint(45, 110))
+    if level in ("partial", "required_only", "full"):
+        demographics["gender"] = rng.choice(Gender.values)
         contacts.append(
             {
                 "name": f"Fictional {rng.choice(FIRST_NAMES)} Contact",
@@ -70,20 +70,24 @@ def build_recipe(rng):
             }
         )
 
+    if level in ("required_only", "full"):
+        wellness["contact_preference"] = rng.choice(ContactPreference.values)
+        wellness["wellness_goals"] = "Fictional goal: take a short walk every day."
+
     if level == "full":
-        demographics["gender"] = rng.choice(Gender.values)
+        demographics["blood_group"] = rng.choice(BloodGroup.values)
+        demographics["height_cm"] = Decimal(rng.randint(150, 195))
+        demographics["weight_kg"] = Decimal(rng.randint(45, 110))
         demographics["country"] = rng.choice(COUNTRIES)
         demographics["preferred_language"] = rng.choice(LANGUAGES)
         wellness["activity_level"] = rng.choice(ActivityLevel.values)
         wellness["diet_preference"] = rng.choice(DietPreference.values)
         wellness["sleep_goal_hours"] = Decimal("7.5")
         wellness["reminder_channel"] = rng.choice(ReminderChannel.values)
-        wellness["wellness_goals"] = "Fictional goal: take a short walk every day."
         wellness["allergy_notes"] = rng.choice(ALLERGIES)
         wellness["condition_notes"] = rng.choice(CONDITIONS)
 
     return demographics, contacts, wellness
-
 
 class Command(BaseCommand):
     help = "Create synthetic (fictional) users with profile sections for local development."

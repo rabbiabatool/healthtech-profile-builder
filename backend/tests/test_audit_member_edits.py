@@ -165,3 +165,9 @@ def test_audit_rows_never_contain_the_values_that_were_saved(member, admin_clien
         assert marker not in through_the_api
     for word in ("password", "token", "secret"):
         assert word not in stored.lower()
+
+def test_changing_the_contact_preference_is_audited_by_field_name_only(member):
+    assert call(member, "patch", WELLNESS_URL, {"contact_preference": "SMS"}).status_code == 200
+    event = only_event()
+    assert event.changed_fields == ["contact_preference"]
+    assert "SMS" not in json.dumps(list(AuditEvent.objects.values()), default=str)

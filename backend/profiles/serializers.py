@@ -49,11 +49,12 @@ class WellnessSerializer(serializers.ModelSerializer):
     class Meta:
         model = WellnessPreferences
         fields = [
+            "contact_preference",
+            "wellness_goals",
             "activity_level",
             "diet_preference",
             "sleep_goal_hours",
             "reminder_channel",
-            "wellness_goals",
             "allergy_notes",
             "condition_notes",
             "updated_at",

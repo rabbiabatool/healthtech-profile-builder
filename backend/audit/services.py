@@ -15,6 +15,7 @@ AUDITABLE_FIELDS = frozenset(
         "diet_preference",
         "sleep_goal_hours",
         "reminder_channel",
+        "contact_preference",
         "wellness_goals",
         "allergy_notes",
         "condition_notes",

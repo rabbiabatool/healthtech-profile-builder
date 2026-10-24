@@ -10,7 +10,12 @@ import SectionForm from "@/components/SectionForm";
 import StatusBadge from "@/components/StatusBadge";
 import { api, ApiError, errorMessage, userApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import { DEMOGRAPHICS_FIELDS, WELLNESS_FIELDS } from "@/lib/sections";
+import {
+  DEMOGRAPHICS_OPTIONAL,
+  DEMOGRAPHICS_REQUIRED,
+  WELLNESS_OPTIONAL,
+  WELLNESS_REQUIRED,
+} from "@/lib/sections";
 import usePageTitle from "@/lib/usePageTitle";
 
 export default function ProfilePage() {
@@ -94,7 +99,9 @@ export default function ProfilePage() {
         title="Demographics"
         intro="Basic details about you. All fictional."
         endpoint="/api/profiles/me/demographics"
-        fields={DEMOGRAPHICS_FIELDS}
+        requiredFields={DEMOGRAPHICS_REQUIRED}
+        optionalFields={DEMOGRAPHICS_OPTIONAL}
+        optionalTitle="Optional information (biometrics and more)"
         data={profile.demographics}
         disabled={inactive}
         onSaved={handleChanged}
@@ -106,9 +113,11 @@ export default function ProfilePage() {
         key={`wellness-${profile.wellness?.updated_at}`}
         id="wellness"
         title="Wellness preferences"
-        intro="How you like to stay healthy, plus allergy and condition notes."
+        intro="How we may contact you and what you are working towards."
         endpoint="/api/profiles/me/wellness"
-        fields={WELLNESS_FIELDS}
+        requiredFields={WELLNESS_REQUIRED}
+        optionalFields={WELLNESS_OPTIONAL}
+        optionalTitle="Optional lifestyle information"
         data={profile.wellness}
         disabled={inactive}
         onSaved={handleChanged}

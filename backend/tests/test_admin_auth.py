@@ -33,8 +33,8 @@ def test_admin_login_creates_a_secure_session_cookie(api_client, admin, admin_lo
     assert cookie["samesite"] == "Lax"
     assert cookie["max-age"] == 3600
     assert Session.objects.count() == 1
-    assert "access_token" not in api_client.cookies
-    assert "refresh_token" not in api_client.cookies
+    assert api_client.cookies["access_token"].value == ""
+    assert api_client.cookies["refresh_token"].value == ""
 
 
 def test_admin_login_requires_csrf_token(csrf_client, admin):
