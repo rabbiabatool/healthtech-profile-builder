@@ -2,24 +2,32 @@ from dataclasses import dataclass
 
 from .models import CompletionStatus
 
-DEMOGRAPHIC_KEYS = ("date_of_birth", "gender", "blood_group", "height_cm", "weight_kg")
-WELLNESS_KEYS = ("activity_level", "diet_preference", "reminder_channel")
+# REQUIRED: these items, and only these, are counted. Each is worth the same share.
+DEMOGRAPHIC_KEYS = ("date_of_birth", "gender")
+WELLNESS_KEYS = ("contact_preference", "wellness_goals")
 
 ITEM_KEYS = DEMOGRAPHIC_KEYS + ("emergency_contact", "primary_contact") + WELLNESS_KEYS
 
 ITEM_LABELS = {
     "date_of_birth": "Date of birth",
     "gender": "Gender",
-    "blood_group": "Blood group",
-    "height_cm": "Height",
-    "weight_kg": "Weight",
     "emergency_contact": "An emergency contact with a phone number",
     "primary_contact": "A primary emergency contact",
-    "activity_level": "Activity level",
-    "diet_preference": "Diet preference",
-    "reminder_channel": "Reminder channel",
+    "contact_preference": "Contact preference",
+    "wellness_goals": "Wellness goals",
 }
 
+# OPTIONAL: never counted and never reported as missing.
+OPTIONAL_BIOMETRIC_AND_OTHER_FIELDS = ("blood_group", "height_cm", "weight_kg", "country", "preferred_language")
+OPTIONAL_LIFESTYLE_FIELDS = (
+    "activity_level",
+    "diet_preference",
+    "sleep_goal_hours",
+    "reminder_channel",
+    "allergy_notes",
+    "condition_notes",
+)
+OPTIONAL_FIELDS = OPTIONAL_BIOMETRIC_AND_OTHER_FIELDS + OPTIONAL_LIFESTYLE_FIELDS
 
 @dataclass(frozen=True)
 class Completion:

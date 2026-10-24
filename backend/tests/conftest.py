@@ -43,10 +43,12 @@ def admin(db):
 @pytest.fixture
 def login():
     def _login(client, email="sara@example.com", password=PASSWORD):
+        token = client.get("/api/auth/csrf").json()["csrfToken"]
         return client.post(
             "/api/auth/user/login",
             {"email": email, "password": password},
             format="json",
+            HTTP_X_CSRFTOKEN=token,
         )
 
     return _login

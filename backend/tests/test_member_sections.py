@@ -19,6 +19,7 @@ VALID_DEMOGRAPHICS = {
     "preferred_language": "English",
 }
 VALID_WELLNESS = {
+    "contact_preference": "EMAIL",
     "activity_level": "MODERATE",
     "diet_preference": "VEGETARIAN",
     "sleep_goal_hours": "7.5",
@@ -75,7 +76,7 @@ def test_demographics_can_be_updated_and_completion_follows(member, user):
     assert saved.country == "Canada"
     assert str(saved.height_cm) == "172.5"
     completion = completion_of(member)
-    assert completion["percent"] == 50
+    assert completion["percent"] == 33
     assert completion["status"] == "IN_PROGRESS"
 
 
@@ -155,12 +156,13 @@ def test_wellness_can_be_updated_and_completion_follows(member, user):
     response = call(member, "patch", WELLNESS_URL, VALID_WELLNESS)
     assert response.status_code == 200
     assert WellnessPreferences.objects.get(profile__user=user).allergy_notes == "Fictional pollen sensitivity"
-    assert completion_of(member)["percent"] == 30
+    assert completion_of(member)["percent"] == 33
 
 
 @pytest.mark.parametrize(
     "values",
     [
+        {"contact_preference": "CARRIER_PIGEON"},
         {"sleep_goal_hours": "2.9"},
         {"sleep_goal_hours": "14.1"},
         {"activity_level": "EXTREME"},
@@ -190,7 +192,7 @@ def test_first_contact_becomes_primary_and_counts_towards_completion(member):
     assert response.status_code == 201
     assert response.json()["is_primary"] is True
     completion = completion_of(member)
-    assert completion["percent"] == 20
+    assert completion["percent"] == 33
     missing = [item["key"] for item in completion["missing"]]
     assert "emergency_contact" not in missing
     assert "primary_contact" not in missing
@@ -306,7 +308,7 @@ def test_deleting_the_primary_promotes_the_next_contact(member):
 
 def test_deleting_the_last_contact_takes_back_the_completion_items(member):
     created = add_contact(member).json()
-    assert completion_of(member)["percent"] == 20
+    assert completion_of(member)["percent"] == 33
     assert member.delete(f"{CONTACTS_URL}/{created['id']}").status_code == 204
     assert completion_of(member)["percent"] == 0
 
@@ -338,3 +340,38 @@ def test_filling_in_everything_reaches_one_hundred_percent(member):
     call(member, "patch", WELLNESS_URL, VALID_WELLNESS)
     add_contact(member)
     assert completion_of(member) == {"percent": 100, "status": "COMPLETE", "missing": []}
+
+def test_the_required_items_alone_reach_one_hundred_percent(member):
+    call(member, "patch", DEMOGRAPHICS_URL, {"date_of_birth": "1995-04-12", "gender": "FEMALE"})
+    call(member, "patch", WELLNESS_URL, {"contact_preference": "EMAIL", "wellness_goals": "Fictional goal: walk daily."})
+    add_contact(member)
+
+    assert completion_of(member) == {"percent": 100, "status": "COMPLETE", "missing": []}
+    assert member.get(DEMOGRAPHICS_URL).json()["height_cm"] is None
+    assert member.get(WELLNESS_URL).json()["activity_level"] == ""
+
+
+def test_optional_information_never_counts_towards_completion(member):
+    call(
+        member,
+        "patch",
+        DEMOGRAPHICS_URL,
+        {"blood_group": "O+", "height_cm": "170.0", "weight_kg": "64.0", "country": "Canada", "preferred_language": "English"},
+    )
+    call(
+        member,
+        "patch",
+        WELLNESS_URL,
+        {
+            "activity_level": "LIGHT",
+            "diet_preference": "VEGAN",
+            "sleep_goal_hours": "7.5",
+            "reminder_channel": "SMS",
+            "allergy_notes": "Fictional note",
+            "condition_notes": "Fictional note",
+        },
+    )
+    completion = completion_of(member)
+    assert completion["percent"] == 0
+    assert completion["status"] == "NOT_STARTED"
+    assert len(completion["missing"]) == 6

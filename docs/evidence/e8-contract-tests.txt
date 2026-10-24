@@ -1,0 +1,31 @@
+﻿commit: 6bd7fff   date: 2026-10-24
+============================= test session starts =============================
+platform win32 -- Python 3.12.5, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\Super\Documents\healthtech-profile-builder\backend\venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.2.18, settings: config.settings (from ini)
+rootdir: C:\Users\Super\Documents\healthtech-profile-builder\backend
+configfile: pytest.ini
+plugins: django-4.14.0
+collecting ... collected 76 items / 57 deselected / 19 selected
+
+tests/test_member_sections.py::test_demographics_can_be_updated_and_completion_follows PASSED [  5%]
+tests/test_member_sections.py::test_wellness_can_be_updated_and_completion_follows PASSED [ 10%]
+tests/test_member_sections.py::test_first_contact_becomes_primary_and_counts_towards_completion PASSED [ 15%]
+tests/test_member_sections.py::test_deleting_the_last_contact_takes_back_the_completion_items PASSED [ 21%]
+tests/test_member_sections.py::test_the_required_items_alone_reach_one_hundred_percent PASSED [ 26%]
+tests/test_member_sections.py::test_optional_information_never_counts_towards_completion PASSED [ 31%]
+tests/test_Completion.py::test_the_required_items_are_exactly_these_six PASSED [ 36%]
+tests/test_Completion.py::test_nothing_filled_is_not_started PASSED      [ 42%]
+tests/test_Completion.py::test_the_required_items_alone_reach_one_hundred_percent PASSED [ 47%]
+tests/test_Completion.py::test_optional_fields_alone_count_for_nothing PASSED [ 52%]
+tests/test_Completion.py::test_optional_fields_do_not_change_a_complete_profile PASSED [ 57%]
+tests/test_Completion.py::test_removing_one_demographic_item_costs_one_item[date_of_birth] PASSED [ 63%]
+tests/test_Completion.py::test_removing_one_demographic_item_costs_one_item[gender] PASSED [ 68%]
+tests/test_Completion.py::test_removing_one_wellness_item_costs_one_item[contact_preference] PASSED [ 73%]
+tests/test_Completion.py::test_removing_one_wellness_item_costs_one_item[wellness_goals] PASSED [ 78%]
+tests/test_Completion.py::test_without_contacts_two_items_are_missing PASSED [ 84%]
+tests/test_Completion.py::test_a_contact_without_a_phone_counts_only_as_primary PASSED [ 89%]
+tests/test_Completion.py::test_blank_text_does_not_count_as_filled PASSED [ 94%]
+tests/test_Completion.py::test_a_partial_profile_reports_the_remaining_items_in_order PASSED [100%]
+
+===================== 19 passed, 57 deselected in 38.67s ======================

@@ -280,6 +280,8 @@ progress {
   text-decoration-color: var(--primary);
 }
 
+.card h3 { font-size: 1rem; margin-top: 1.25rem; }
+
 @media (max-width: 40rem) {
   .hide-sm { display: none; }
   .detail-row { grid-template-columns: 1fr; }

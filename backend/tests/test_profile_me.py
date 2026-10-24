@@ -49,22 +49,27 @@ def test_new_profile_reports_every_item_as_missing(api_client, user, login):
     completion = api_client.get(ME_URL).json()["completion"]
     assert completion["percent"] == 0
     assert completion["status"] == "NOT_STARTED"
-    assert len(completion["missing"]) == 10
+    assert len(completion["missing"]) == 6
     assert completion["missing"][0] == {"key": "date_of_birth", "label": "Date of birth"}
 
 
 def test_completion_in_the_response_tracks_the_sections(api_client, user, login):
     profile = HealthProfile.objects.get(user=user)
     WellnessPreferences.objects.filter(profile=profile).update(
-        activity_level="MODERATE",
-        diet_preference="NO_PREFERENCE",
-        reminder_channel="EMAIL",
+        contact_preference="EMAIL",
+        wellness_goals="Fictional goal: walk daily.",
     )
     recalculate_completion(profile)
 
     login(api_client)
     completion = api_client.get(ME_URL).json()["completion"]
-    assert completion["percent"] == 30
+    assert completion["percent"] == 33
+    assert completion["status"] == "IN_PROGRESS"
+    assert "contact_preference" not in [item["key"] for item in completion["missing"]]
+
+    login(api_client)
+    completion = api_client.get(ME_URL).json()["completion"]
+    assert completion["percent"] == 33
     assert completion["status"] == "IN_PROGRESS"
     assert "activity_level" not in [item["key"] for item in completion["missing"]]
 

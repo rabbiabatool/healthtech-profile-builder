@@ -104,6 +104,7 @@ class UserLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        enforce_csrf(request)
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

@@ -14,6 +14,7 @@ import { formatDateTime, formatDay } from "@/lib/format";
 import {
   ACTIVITY_LEVELS,
   DIET_PREFERENCES,
+  CONTACT_PREFERENCES,
   GENDERS,
   RELATIONSHIPS,
   REMINDER_CHANNELS,
@@ -175,6 +176,7 @@ export default function AdminProfileDetailPage() {
             <Details
               title="Wellness preferences"
               rows={[
+                ["Contact preference", labelOf(CONTACT_PREFERENCES, wellness.contact_preference)],
                 ["Activity level", labelOf(ACTIVITY_LEVELS, wellness.activity_level)],
                 ["Diet preference", labelOf(DIET_PREFERENCES, wellness.diet_preference)],
                 ["Sleep goal", wellness.sleep_goal_hours ? `${wellness.sleep_goal_hours} hours` : "—"],

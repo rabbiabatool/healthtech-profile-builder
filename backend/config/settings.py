@@ -133,6 +133,7 @@ SPECTACULAR_SETTINGS = {
         "ActivityLevelEnum": "profiles.models.ActivityLevel",
         "DietPreferenceEnum": "profiles.models.DietPreference",
         "ReminderChannelEnum": "profiles.models.ReminderChannel",
+        "ContactPreferenceEnum": "profiles.models.ContactPreference",
         "RelationshipEnum": "profiles.models.Relationship",
         "AuditActionEnum": "audit.models.AuditAction",
         "ActorRoleEnum": "audit.models.ActorRole",

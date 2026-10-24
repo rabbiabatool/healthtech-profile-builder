@@ -1,0 +1,156 @@
+﻿.............F.......................................................... [ 17%]
+........................................................................ [ 34%]
+........................................................................ [ 51%]
+........................................................................ [ 69%]
+........................................................................ [ 86%]
+..................................F.....................                 [100%]
+================================== FAILURES ===================================
+___________ test_database_rejects_invalid_wellness_values[values5] ____________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x000002024ECAA330>
+sql = 'UPDATE "wellness_preferences" SET "contact_preference" = %s WHERE "wellness_preferences"."profile_id" = %s'
+params = ('CARRIER_PIGEON', 14)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x000002024ECAA330>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        # Raise a warning during app initialization (stored_app_configs is only
+        # ever set during testing).
+        if not apps.ready and not apps.stored_app_configs:
+            warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+venv\Lib\site-packages\django\db\backends\utils.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INTRANS] (host=localhost user=healthtech_user database=test_healthtech_db) at 0x2024ecf8290>
+query = 'UPDATE "wellness_preferences" SET "contact_preference" = %s WHERE "wellness_preferences"."profile_id" = %s'
+params = ('CARRIER_PIGEON', 14), prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.StringDataRightTruncation: value too long for type character varying(10)
+
+venv\Lib\site-packages\psycopg\cursor.py:117: StringDataRightTruncation
+
+The above exception was the direct cause of the following exception:
+
+profile = <HealthProfile: Profile of 14>
+values = {'contact_preference': 'CARRIER_PIGEON'}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"sleep_goal_hours": Decimal("2.9")},
+            {"sleep_goal_hours": Decimal("14.1")},
+            {"activity_level": "EXTREME"},
+            {"diet_preference": "CARNIVORE"},
+            {"reminder_channel": "PIGEON"},
+            {"contact_preference": "CARRIER_PIGEON"},
+        ],
+    )
+    def test_database_rejects_invalid_wellness_values(profile, values):
+        with pytest.raises(IntegrityError), transaction.atomic():
+>           WellnessPreferences.objects.filter(profile=profile).update(**values)
+
+tests\test_Sections_models.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\django\db\models\query.py:1263: in update
+    rows = query.get_compiler(self.db).execute_sql(ROW_COUNT)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\django\db\models\sql\compiler.py:2060: in execute_sql
+    row_count = super().execute_sql(result_type)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\django\db\models\sql\compiler.py:1623: in execute_sql
+    cursor.execute(sql, params)
+venv\Lib\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+venv\Lib\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+venv\Lib\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+venv\Lib\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <django.db.backends.postgresql.base.Cursor [closed] [INTRANS] (host=localhost user=healthtech_user database=test_healthtech_db) at 0x2024ecf8290>
+query = 'UPDATE "wellness_preferences" SET "contact_preference" = %s WHERE "wellness_preferences"."profile_id" = %s'
+params = ('CARRIER_PIGEON', 14), prepare = None, binary = None
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool | None = None,
+    ) -> Self:
+        """
+        Execute a query or command to the database.
+        """
+        try:
+            with self._conn.lock:
+                self._conn.wait(
+                    self._execute_gen(query, params, prepare=prepare, binary=binary)
+                )
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           django.db.utils.DataError: value too long for type character varying(10)
+
+venv\Lib\site-packages\psycopg\cursor.py:117: DataError
+_____________ test_completion_in_the_response_tracks_the_sections _____________
+
+api_client = <rest_framework.test.APIClient object at 0x000002024F246210>
+user = <User: sara@example.com>
+login = <function login.<locals>._login at 0x000002024F2C99E0>
+
+    def test_completion_in_the_response_tracks_the_sections(api_client, user, login):
+        profile = HealthProfile.objects.get(user=user)
+        WellnessPreferences.objects.filter(profile=profile).update(
+            contact_preference="EMAIL",
+            wellness_goals="Fictional goal: walk daily.",
+        )
+        recalculate_completion(profile)
+    
+        login(api_client)
+        completion = api_client.get(ME_URL).json()["completion"]
+        assert completion["percent"] == 33
+        assert completion["status"] == "IN_PROGRESS"
+        assert "contact_preference" not in [item["key"] for item in completion["missing"]]
+    
+        login(api_client)
+        completion = api_client.get(ME_URL).json()["completion"]
+>       assert completion["percent"] == 30
+E       assert 33 == 30
+
+tests\test_profile_me.py:72: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_Sections_models.py::test_database_rejects_invalid_wellness_values[values5]
+FAILED tests/test_profile_me.py::test_completion_in_the_response_tracks_the_sections
+2 failed, 414 passed in 1536.88s (0:25:36)

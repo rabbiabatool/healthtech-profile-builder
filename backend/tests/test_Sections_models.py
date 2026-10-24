@@ -13,13 +13,7 @@ pytestmark = pytest.mark.django_db
 
 PASSWORD = "Str0ng!Pass#2026"
 
-FIVE_DEMOGRAPHIC_ITEMS = {
-    "date_of_birth": date(1990, 5, 17),
-    "gender": "FEMALE",
-    "blood_group": "O+",
-    "height_cm": Decimal("170.0"),
-    "weight_kg": Decimal("65.0"),
-}
+REQUIRED_DEMOGRAPHICS = {"date_of_birth": date(1990, 5, 17), "gender": "FEMALE"}
 
 
 def make_other_profile():
@@ -87,6 +81,7 @@ def test_database_rejects_invalid_demographics(profile, values):
         {"activity_level": "EXTREME"},
         {"diet_preference": "CARNIVORE"},
         {"reminder_channel": "PIGEON"},
+        {"contact_preference": "CARRIER_PIGEON"},
     ],
 )
 def test_database_rejects_invalid_wellness_values(profile, values):
@@ -173,11 +168,10 @@ def test_primary_contact_is_listed_first(profile):
 
 
 def test_recalculate_completion_follows_the_sections(profile):
-    Demographics.objects.filter(profile=profile).update(**FIVE_DEMOGRAPHIC_ITEMS)
+    Demographics.objects.filter(profile=profile).update(**REQUIRED_DEMOGRAPHICS)
     WellnessPreferences.objects.filter(profile=profile).update(
-        activity_level="MODERATE",
-        diet_preference="NO_PREFERENCE",
-        reminder_channel="EMAIL",
+        contact_preference="EMAIL",
+        wellness_goals="Fictional goal: walk daily.",
     )
     make_contact(profile, is_primary=True)
 
@@ -189,27 +183,26 @@ def test_recalculate_completion_follows_the_sections(profile):
     EmergencyContact.objects.filter(profile=profile).delete()
     recalculate_completion(profile)
     stored.refresh_from_db()
-    assert (stored.completion_percent, stored.completion_status) == (80, "IN_PROGRESS")
+    assert (stored.completion_percent, stored.completion_status) == (67, "IN_PROGRESS")
 
 
 def test_recalculate_command_creates_missing_sections_and_fixes_stale_values(profile):
     lonely_user = User.objects.create_user(email="lonely@example.com", password=PASSWORD, full_name="Lonely Demo")
     lonely = HealthProfile.objects.create(user=lonely_user)
-    Demographics.objects.filter(profile=profile).update(**FIVE_DEMOGRAPHIC_ITEMS)
+    Demographics.objects.filter(profile=profile).update(**REQUIRED_DEMOGRAPHICS)
 
     call_command("recalculate_completion")
 
     assert Demographics.objects.filter(profile=lonely).exists()
     assert WellnessPreferences.objects.filter(profile=lonely).exists()
-    assert HealthProfile.objects.get(pk=profile.pk).completion_percent == 50
+    assert HealthProfile.objects.get(pk=profile.pk).completion_percent == 33
     assert HealthProfile.objects.get(pk=lonely.pk).completion_percent == 0
 
 
 def test_recalculate_dry_run_changes_nothing(profile):
-    Demographics.objects.filter(profile=profile).update(**FIVE_DEMOGRAPHIC_ITEMS)
+    Demographics.objects.filter(profile=profile).update(**REQUIRED_DEMOGRAPHICS)
     call_command("recalculate_completion", dry_run=True)
     assert HealthProfile.objects.get(pk=profile.pk).completion_percent == 0
-
 
 def test_seed_data_creates_sections_with_consistent_completion():
     call_command("seed_data", count=40)
@@ -222,3 +215,8 @@ def test_seed_data_creates_sections_with_consistent_completion():
     for stored in HealthProfile.objects.prefetch_related("demographics", "wellness", "emergency_contacts"):
         result = completion_for(stored)
         assert (stored.completion_percent, stored.completion_status) == (result.percent, result.status)
+
+    complete_without_optional = Demographics.objects.filter(
+        profile__completion_status="COMPLETE", height_cm__isnull=True, blood_group=""
+    )
+    assert complete_without_optional.exists()

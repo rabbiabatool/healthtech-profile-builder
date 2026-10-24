@@ -25,6 +25,7 @@ WELLNESS_FIELDS = [
     "wellness_goals",
     "allergy_notes",
     "condition_notes",
+    "contact_preference",
 ]
 CONTACT_FIELDS = ["name", "relationship", "phone", "email"]
 

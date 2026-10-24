@@ -55,6 +55,13 @@ class ReminderChannel(models.TextChoices):
     APP = "APP", "In-app"
 
 
+class ContactPreference(models.TextChoices):
+    EMAIL = "EMAIL", "Email"
+    PHONE = "PHONE", "Phone call"
+    SMS = "SMS", "Text message"
+    NONE = "NONE", "Do not contact me"
+
+
 class Relationship(models.TextChoices):
     PARENT = "PARENT", "Parent"
     SPOUSE = "SPOUSE", "Spouse or partner"
@@ -109,7 +116,15 @@ class HealthProfile(models.Model):
 
     def __str__(self):
         return f"Profile of {self.user_id}"
-    
+
+# PROFILE CONTRACT (what counts towards completion). See profiles/completion.py.
+#   Required:  Demographics.date_of_birth, Demographics.gender,
+#              an emergency contact with a phone number, a primary contact,
+#              WellnessPreferences.contact_preference, WellnessPreferences.wellness_goals
+#   Optional:  every other field in Demographics (blood group, height, weight, country,
+#              language: extra biometrics must never replace a required field) and the
+#              optional lifestyle information in WellnessPreferences (activity level, diet
+#              preference, sleep goal, reminder channel, allergy and condition notes).
 class Demographics(models.Model):
     profile = models.OneToOneField(
         HealthProfile,
@@ -206,6 +221,7 @@ class WellnessPreferences(models.Model):
     diet_preference = models.CharField(max_length=15, choices=DietPreference.choices, blank=True)
     sleep_goal_hours = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     reminder_channel = models.CharField(max_length=10, choices=ReminderChannel.choices, blank=True)
+    contact_preference = models.CharField(max_length=14, choices=ContactPreference.choices, blank=True)
     wellness_goals = models.TextField(blank=True)
     allergy_notes = models.TextField(blank=True)
     condition_notes = models.TextField(blank=True)
@@ -229,6 +245,10 @@ class WellnessPreferences(models.Model):
             models.CheckConstraint(
                 condition=Q(reminder_channel="") | Q(reminder_channel__in=ReminderChannel.values),
                 name="wellness_reminder_is_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(contact_preference="") | Q(contact_preference__in=ContactPreference.values),
+                name="wellness_contact_preference_valid",
             ),
         ]
 

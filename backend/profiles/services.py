@@ -29,6 +29,7 @@ WELLNESS_BLANK = {
     "wellness_goals": "",
     "allergy_notes": "",
     "condition_notes": "",
+    "contact_preference": "",
 }
 
 

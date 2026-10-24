@@ -1,0 +1,19 @@
+﻿commit: 582a2ef   date: 2026-10-21
+============================= test session starts =============================
+platform win32 -- Python 3.12.5, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\Super\Documents\healthtech-profile-builder\backend\venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.2.18, settings: config.settings (from ini)
+rootdir: C:\Users\Super\Documents\healthtech-profile-builder\backend
+configfile: pytest.ini
+plugins: django-4.14.0
+collecting ... collected 41 items / 34 deselected / 7 selected
+
+tests/test_auth_user.py::test_member_login_without_a_csrf_token_is_rejected PASSED [ 14%]
+tests/test_auth_user.py::test_member_login_with_a_forged_csrf_token_is_rejected PASSED [ 28%]
+tests/test_auth_user.py::test_member_login_with_a_valid_csrf_token_is_accepted PASSED [ 42%]
+tests/test_auth_user.py::test_member_login_checks_the_origin_header[https://evil.example-403] PASSED [ 57%]
+tests/test_auth_user.py::test_member_login_checks_the_origin_header[http://testserver-200] PASSED [ 71%]
+tests/test_auth_user.py::test_csrf_check_runs_before_credentials_are_examined PASSED [ 85%]
+tests/test_auth_user.py::test_signup_remains_csrf_exempt_by_decision PASSED [100%]
+
+====================== 7 passed, 34 deselected in 14.58s ======================
