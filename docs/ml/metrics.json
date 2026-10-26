@@ -1,0 +1,688 @@
+{
+  "data_sha256": "e86a485d5b11cb669df9c2c0e09496edaf29f4f7a557868e2542c876ad4f377b",
+  "data_version": "synthetic-appointments-1.0.0",
+  "model_version": "noshow-1.0.0",
+  "quality_gate_enforced": true,
+  "schema_version": "v1",
+  "seed": 42,
+  "shipped_model": "baseline",
+  "splits": {
+    "test": {
+      "no_show_rate": 0.199,
+      "patients": 1147,
+      "rows": 4000
+    },
+    "train": {
+      "no_show_rate": 0.199,
+      "patients": 3466,
+      "rows": 11998
+    },
+    "validation": {
+      "no_show_rate": 0.1992,
+      "patients": 1152,
+      "rows": 4002
+    }
+  },
+  "test": {
+    "bands": [
+      {
+        "band": "LOW",
+        "n": 1414,
+        "no_show_rate": 0.1216,
+        "share": 0.3535
+      },
+      {
+        "band": "MEDIUM",
+        "n": 1189,
+        "no_show_rate": 0.185,
+        "share": 0.2973
+      },
+      {
+        "band": "HIGH",
+        "n": 1397,
+        "no_show_rate": 0.2892,
+        "share": 0.3493
+      }
+    ],
+    "calibration": {
+      "fraction_positive": [
+        0.0975,
+        0.13,
+        0.12,
+        0.1475,
+        0.1575,
+        0.2275,
+        0.21,
+        0.2675,
+        0.2625,
+        0.37
+      ],
+      "mean_predicted": [
+        0.0867,
+        0.1115,
+        0.1307,
+        0.1496,
+        0.1696,
+        0.1912,
+        0.2165,
+        0.2472,
+        0.29,
+        0.3944
+      ]
+    },
+    "capacity": [
+      {
+        "flag_top_share": 0.1,
+        "flagged": 400,
+        "lift": 1.8593,
+        "precision": 0.37,
+        "recall": 0.1859
+      },
+      {
+        "flag_top_share": 0.2,
+        "flagged": 800,
+        "lift": 1.5892,
+        "precision": 0.3162,
+        "recall": 0.3178
+      },
+      {
+        "flag_top_share": 0.3,
+        "flagged": 1200,
+        "lift": 1.5075,
+        "precision": 0.3,
+        "recall": 0.4523
+      }
+    ],
+    "confidence_intervals": {
+      "baseline": {
+        "brier": {
+          "high": 0.1605,
+          "low": 0.1449
+        },
+        "pr_auc": {
+          "high": 0.3453,
+          "low": 0.2832
+        },
+        "roc_auc": {
+          "high": 0.6601,
+          "low": 0.6166
+        }
+      },
+      "improved": {
+        "brier": {
+          "high": 0.1611,
+          "low": 0.1453
+        },
+        "pr_auc": {
+          "high": 0.3378,
+          "low": 0.2778
+        },
+        "roc_auc": {
+          "high": 0.6522,
+          "low": 0.6086
+        }
+      }
+    },
+    "errors": {
+      "false_negatives": 392,
+      "false_positives": 993,
+      "share_by_feature": {
+        "appointment_type": {
+          "all_rows": {
+            "CHECKUP": 0.246,
+            "FOLLOW_UP": 0.295,
+            "LAB_TEST": 0.153,
+            "SPECIALIST": 0.157,
+            "VACCINATION": 0.149
+          },
+          "false_negatives": {
+            "CHECKUP": 0.23,
+            "FOLLOW_UP": 0.365,
+            "LAB_TEST": 0.171,
+            "SPECIALIST": 0.105,
+            "VACCINATION": 0.13
+          },
+          "false_positives": {
+            "CHECKUP": 0.286,
+            "FOLLOW_UP": 0.253,
+            "LAB_TEST": 0.085,
+            "SPECIALIST": 0.249,
+            "VACCINATION": 0.128
+          }
+        },
+        "day_of_week": {
+          "all_rows": {
+            "FRI": 0.181,
+            "MON": 0.218,
+            "THU": 0.196,
+            "TUE": 0.203,
+            "WED": 0.202
+          },
+          "false_negatives": {
+            "FRI": 0.158,
+            "MON": 0.212,
+            "THU": 0.232,
+            "TUE": 0.184,
+            "WED": 0.214
+          },
+          "false_positives": {
+            "FRI": 0.229,
+            "MON": 0.266,
+            "THU": 0.13,
+            "TUE": 0.189,
+            "WED": 0.186
+          }
+        },
+        "reminder_sent": {
+          "all_rows": {
+            "False": 0.408,
+            "True": 0.592
+          },
+          "false_negatives": {
+            "False": 0.263,
+            "True": 0.737
+          },
+          "false_positives": {
+            "False": 0.735,
+            "True": 0.265
+          }
+        }
+      }
+    },
+    "operating_point": {
+      "baseline": {
+        "f1": 0.3684,
+        "flagged_share": 0.3493,
+        "fn": 392,
+        "fp": 993,
+        "precision": 0.2892,
+        "recall": 0.5075,
+        "threshold": 0.21671456999033917,
+        "tn": 2211,
+        "tp": 404
+      },
+      "improved": {
+        "f1": 0.3714,
+        "flagged_share": 0.4068,
+        "fn": 346,
+        "fp": 1177,
+        "precision": 0.2766,
+        "recall": 0.5653,
+        "threshold": 0.19810021254296725,
+        "tn": 2027,
+        "tp": 450
+      }
+    },
+    "paired_difference": {
+      "high": 0.006,
+      "low": -0.018,
+      "mean": -0.0056
+    },
+    "scores": {
+      "baseline": {
+        "brier": 0.1527,
+        "log_loss": 0.4794,
+        "pr_auc": 0.3111,
+        "roc_auc": 0.6384
+      },
+      "dummy": {
+        "brier": 0.1594,
+        "log_loss": 0.499,
+        "pr_auc": 0.199,
+        "roc_auc": 0.5
+      },
+      "improved": {
+        "brier": 0.1533,
+        "log_loss": 0.4809,
+        "pr_auc": 0.3047,
+        "roc_auc": 0.6302
+      }
+    },
+    "shipped_model": "baseline",
+    "slices": [
+      {
+        "mean_predicted": 0.2412,
+        "n": 621,
+        "no_show_rate": 0.2512,
+        "pr_auc": 0.3683,
+        "precision": 0.3028,
+        "recall": 0.6346,
+        "slice": "age_band",
+        "value": "18-29"
+      },
+      {
+        "mean_predicted": 0.2082,
+        "n": 1140,
+        "no_show_rate": 0.2105,
+        "pr_auc": 0.3413,
+        "precision": 0.3105,
+        "recall": 0.5667,
+        "slice": "age_band",
+        "value": "30-44"
+      },
+      {
+        "mean_predicted": 0.1889,
+        "n": 1445,
+        "no_show_rate": 0.1862,
+        "pr_auc": 0.2767,
+        "precision": 0.2893,
+        "recall": 0.4721,
+        "slice": "age_band",
+        "value": "45-59"
+      },
+      {
+        "mean_predicted": 0.1698,
+        "n": 794,
+        "no_show_rate": 0.165,
+        "pr_auc": 0.2493,
+        "precision": 0.2176,
+        "recall": 0.3206,
+        "slice": "age_band",
+        "value": "60-95"
+      },
+      {
+        "mean_predicted": 0.174,
+        "n": 585,
+        "no_show_rate": 0.1829,
+        "pr_auc": 0.2582,
+        "precision": 0.2483,
+        "recall": 0.3458,
+        "slice": "lead_time_bucket",
+        "value": "0-7"
+      },
+      {
+        "mean_predicted": 0.1831,
+        "n": 1881,
+        "no_show_rate": 0.1866,
+        "pr_auc": 0.2699,
+        "precision": 0.2746,
+        "recall": 0.4131,
+        "slice": "lead_time_bucket",
+        "value": "8-30"
+      },
+      {
+        "mean_predicted": 0.2228,
+        "n": 1437,
+        "no_show_rate": 0.2129,
+        "pr_auc": 0.3563,
+        "precision": 0.3021,
+        "recall": 0.6438,
+        "slice": "lead_time_bucket",
+        "value": "31-90"
+      },
+      {
+        "mean_predicted": 0.296,
+        "n": 97,
+        "no_show_rate": 0.3299,
+        "pr_auc": null,
+        "precision": 0.3676,
+        "recall": 0.7812,
+        "slice": "lead_time_bucket",
+        "value": "91-180"
+      },
+      {
+        "mean_predicted": 0.2102,
+        "n": 984,
+        "no_show_rate": 0.2012,
+        "pr_auc": 0.2858,
+        "precision": 0.2755,
+        "recall": 0.5455,
+        "slice": "appointment_type",
+        "value": "CHECKUP"
+      },
+      {
+        "mean_predicted": 0.1916,
+        "n": 1179,
+        "no_show_rate": 0.2231,
+        "pr_auc": 0.3568,
+        "precision": 0.3235,
+        "recall": 0.4563,
+        "slice": "appointment_type",
+        "value": "FOLLOW_UP"
+      },
+      {
+        "mean_predicted": 0.1586,
+        "n": 613,
+        "no_show_rate": 0.1501,
+        "pr_auc": 0.2465,
+        "precision": 0.2294,
+        "recall": 0.2717,
+        "slice": "appointment_type",
+        "value": "LAB_TEST"
+      },
+      {
+        "mean_predicted": 0.2452,
+        "n": 626,
+        "no_show_rate": 0.2093,
+        "pr_auc": 0.3544,
+        "precision": 0.2671,
+        "recall": 0.687,
+        "slice": "appointment_type",
+        "value": "SPECIALIST"
+      },
+      {
+        "mean_predicted": 0.1866,
+        "n": 598,
+        "no_show_rate": 0.1873,
+        "pr_auc": 0.3086,
+        "precision": 0.3245,
+        "recall": 0.5446,
+        "slice": "appointment_type",
+        "value": "VACCINATION"
+      },
+      {
+        "mean_predicted": 0.1991,
+        "n": 327,
+        "no_show_rate": 0.1957,
+        "pr_auc": 0.2707,
+        "precision": 0.2991,
+        "recall": 0.5469,
+        "slice": "distance",
+        "value": "missing"
+      },
+      {
+        "mean_predicted": 0.1987,
+        "n": 3673,
+        "no_show_rate": 0.1993,
+        "pr_auc": 0.3162,
+        "precision": 0.2883,
+        "recall": 0.5041,
+        "slice": "distance",
+        "value": "present"
+      }
+    ]
+  },
+  "typical_ranges": {
+    "age": [
+      18.0,
+      83.0
+    ],
+    "distance_km": [
+      1.5,
+      62.21
+    ],
+    "lead_time_days": [
+      1.0,
+      117.0
+    ],
+    "previous_appointments": [
+      1.0,
+      12.0
+    ],
+    "previous_no_shows": [
+      0.0,
+      5.0
+    ],
+    "scheduled_hour": [
+      8.0,
+      17.0
+    ]
+  },
+  "validation": {
+    "band_cutpoints": {
+      "HIGH": 0.21671456999033917,
+      "MEDIUM": 0.15079280161828143
+    },
+    "baseline_coefficients": [
+      {
+        "coefficient": -0.6301,
+        "feature": "reminder_sent",
+        "odds_ratio": 0.5326
+      },
+      {
+        "coefficient": -0.4407,
+        "feature": "appointment_type_LAB_TEST",
+        "odds_ratio": 0.6436
+      },
+      {
+        "coefficient": 0.3543,
+        "feature": "previous_no_shows",
+        "odds_ratio": 1.4252
+      },
+      {
+        "coefficient": -0.3394,
+        "feature": "day_of_week_THU",
+        "odds_ratio": 0.7122
+      },
+      {
+        "coefficient": -0.2712,
+        "feature": "appointment_type_VACCINATION",
+        "odds_ratio": 0.7624
+      },
+      {
+        "coefficient": -0.2081,
+        "feature": "day_of_week_WED",
+        "odds_ratio": 0.8121
+      },
+      {
+        "coefficient": -0.1708,
+        "feature": "day_of_week_TUE",
+        "odds_ratio": 0.843
+      },
+      {
+        "coefficient": -0.1633,
+        "feature": "appointment_type_FOLLOW_UP",
+        "odds_ratio": 0.8494
+      },
+      {
+        "coefficient": 0.1614,
+        "feature": "lead_time_days",
+        "odds_ratio": 1.1751
+      },
+      {
+        "coefficient": 0.1555,
+        "feature": "appointment_type_SPECIALIST",
+        "odds_ratio": 1.1682
+      },
+      {
+        "coefficient": -0.131,
+        "feature": "previous_appointments",
+        "odds_ratio": 0.8772
+      },
+      {
+        "coefficient": -0.124,
+        "feature": "age",
+        "odds_ratio": 0.8834
+      },
+      {
+        "coefficient": 0.1078,
+        "feature": "distance_km",
+        "odds_ratio": 1.1138
+      },
+      {
+        "coefficient": -0.066,
+        "feature": "appointment_type_CHECKUP",
+        "odds_ratio": 0.9361
+      },
+      {
+        "coefficient": -0.0553,
+        "feature": "day_of_week_MON",
+        "odds_ratio": 0.9462
+      },
+      {
+        "coefficient": 0.0167,
+        "feature": "missingindicator_distance_km",
+        "odds_ratio": 1.0168
+      },
+      {
+        "coefficient": -0.0122,
+        "feature": "day_of_week_FRI",
+        "odds_ratio": 0.9879
+      },
+      {
+        "coefficient": -0.0047,
+        "feature": "scheduled_hour",
+        "odds_ratio": 0.9953
+      }
+    ],
+    "baseline_trials": [
+      {
+        "params": {
+          "C": 0.1
+        },
+        "val_pr_auc": 0.3312
+      },
+      {
+        "params": {
+          "C": 1.0
+        },
+        "val_pr_auc": 0.3313
+      },
+      {
+        "params": {
+          "C": 10.0
+        },
+        "val_pr_auc": 0.3313
+      }
+    ],
+    "chosen_params": {
+      "baseline": {
+        "C": 1.0
+      },
+      "improved": {
+        "learning_rate": 0.05,
+        "max_leaf_nodes": 8
+      }
+    },
+    "improved_trials": [
+      {
+        "params": {
+          "learning_rate": 0.05,
+          "max_leaf_nodes": 8
+        },
+        "val_pr_auc": 0.3351
+      },
+      {
+        "params": {
+          "learning_rate": 0.05,
+          "max_leaf_nodes": 16
+        },
+        "val_pr_auc": 0.3302
+      },
+      {
+        "params": {
+          "learning_rate": 0.05,
+          "max_leaf_nodes": 31
+        },
+        "val_pr_auc": 0.3128
+      },
+      {
+        "params": {
+          "learning_rate": 0.1,
+          "max_leaf_nodes": 8
+        },
+        "val_pr_auc": 0.326
+      },
+      {
+        "params": {
+          "learning_rate": 0.1,
+          "max_leaf_nodes": 16
+        },
+        "val_pr_auc": 0.313
+      },
+      {
+        "params": {
+          "learning_rate": 0.1,
+          "max_leaf_nodes": 31
+        },
+        "val_pr_auc": 0.3026
+      }
+    ],
+    "operating_point": {
+      "baseline": {
+        "f1": 0.3978,
+        "flagged_share": 0.3548,
+        "fn": 356,
+        "fp": 979,
+        "precision": 0.3106,
+        "recall": 0.5533,
+        "threshold": 0.21671456999033917,
+        "tn": 2226,
+        "tp": 441
+      },
+      "improved": {
+        "f1": 0.4051,
+        "flagged_share": 0.4128,
+        "fn": 301,
+        "fp": 1156,
+        "precision": 0.3002,
+        "recall": 0.6223,
+        "threshold": 0.19810021254296725,
+        "tn": 2049,
+        "tp": 496
+      }
+    },
+    "permutation_importance": [
+      {
+        "feature": "previous_no_shows",
+        "mean_drop_in_pr_auc": 0.0809,
+        "std": 0.0054
+      },
+      {
+        "feature": "reminder_sent",
+        "mean_drop_in_pr_auc": 0.0528,
+        "std": 0.0031
+      },
+      {
+        "feature": "lead_time_days",
+        "mean_drop_in_pr_auc": 0.0156,
+        "std": 0.0039
+      },
+      {
+        "feature": "appointment_type",
+        "mean_drop_in_pr_auc": 0.0151,
+        "std": 0.0039
+      },
+      {
+        "feature": "distance_km",
+        "mean_drop_in_pr_auc": 0.0104,
+        "std": 0.0016
+      },
+      {
+        "feature": "previous_appointments",
+        "mean_drop_in_pr_auc": 0.0085,
+        "std": 0.0015
+      },
+      {
+        "feature": "day_of_week",
+        "mean_drop_in_pr_auc": 0.0063,
+        "std": 0.0034
+      },
+      {
+        "feature": "age",
+        "mean_drop_in_pr_auc": 0.0051,
+        "std": 0.0024
+      },
+      {
+        "feature": "scheduled_hour",
+        "mean_drop_in_pr_auc": 0.0001,
+        "std": 0.0001
+      }
+    ],
+    "scores": {
+      "baseline": {
+        "brier": 0.1504,
+        "log_loss": 0.4722,
+        "pr_auc": 0.3313,
+        "roc_auc": 0.6631
+      },
+      "dummy": {
+        "brier": 0.1595,
+        "log_loss": 0.4992,
+        "pr_auc": 0.1992,
+        "roc_auc": 0.5
+      },
+      "improved": {
+        "brier": 0.1506,
+        "log_loss": 0.473,
+        "pr_auc": 0.337,
+        "roc_auc": 0.6664
+      }
+    },
+    "shipped_model": "baseline",
+    "thresholds": {
+      "baseline": 0.21671456999033917,
+      "improved": 0.19810021254296725
+    }
+  }
+}

@@ -74,7 +74,23 @@ def test_threshold_was_chosen_on_validation_data(run_one, small_df):
     y_val = parts["validation"][schema.TARGET_COLUMN].to_numpy()
     model = joblib.load(run_one["model_path"])
     expected = evaluate.choose_threshold(y_val, model.predict_proba(X_val)[:, 1])
-    assert run_one["report"]["validation"]["thresholds"]["improved"] == pytest.approx(expected)
+    assert run_one["metadata"]["threshold"] == pytest.approx(expected)
+
+
+def test_quality_gate_blocks_a_shipped_model_that_does_not_beat_the_dummy():
+    scores = {"dummy": {"pr_auc": 0.2}, "baseline": {"pr_auc": 0.2}, "improved": {"pr_auc": 0.5}}
+    with pytest.raises(train.QualityGateError):
+        train.check_quality_gate(scores, shipped="baseline")
+    scores["baseline"]["pr_auc"] = 0.3
+    train.check_quality_gate(scores, shipped="baseline")
+
+
+def test_the_saved_model_is_the_configured_shipped_model(run_one):
+    model = joblib.load(run_one["model_path"])
+    assert config.SHIPPED_MODEL == "baseline"
+    assert type(model.named_steps["model"]).__name__ == "LogisticRegression"
+    assert run_one["metadata"]["shipped_model"] == config.SHIPPED_MODEL
+    assert config.SHIPPED_MODEL_REASON in run_one["metadata"]["selection_note"]
 
 
 def test_model_selection_never_receives_the_test_set():

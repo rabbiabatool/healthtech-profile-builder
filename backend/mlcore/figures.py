@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from sklearn.metrics import precision_recall_curve  # noqa: E402
+from mlcore import config  # noqa: E402
 
 
 def _save(fig, path):
@@ -28,7 +29,7 @@ def plot_pr_curves(y_true, probabilities, path):
 def plot_calibration(points, path):
     fig, ax = plt.subplots(figsize=(4.5, 4))
     ax.plot([0, 1], [0, 1], linestyle="--", color="grey", label="perfect calibration")
-    ax.plot(points["mean_predicted"], points["fraction_positive"], marker="o", label="improved model")
+    ax.plot(points["mean_predicted"], points["fraction_positive"], marker="o", label="shipped model")
     ax.set_xlabel("Mean predicted probability")
     ax.set_ylabel("Fraction that were no-shows")
     ax.set_title("Calibration (test set)")
@@ -66,5 +67,5 @@ def make_all(report, arrays, out_dir):
         y_test, {"baseline": probs["baseline"], "improved": probs["improved"]}, out_dir / "pr_curves.png"
     )
     plot_calibration(report["test"]["calibration"], out_dir / "calibration.png")
-    plot_confusion(report["test"]["operating_point"]["improved"], out_dir / "confusion_matrix.png")
+    plot_confusion(report["test"]["operating_point"][config.SHIPPED_MODEL], out_dir / "confusion_matrix.png")
     plot_importance(report["validation"]["permutation_importance"], out_dir / "permutation_importance.png")

@@ -12,7 +12,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from mlcore import config
+from mlcore import config, schema
 
 
 def _r(value, digits=4):
@@ -84,6 +84,89 @@ def bootstrap_ci(y_true, y_prob, groups, n_boot=config.BOOTSTRAP_ROUNDS, seed=co
         name: ({"low": _r(np.percentile(v, 2.5)), "high": _r(np.percentile(v, 97.5))} if v else None)
         for name, v in samples.items()
     }
+
+
+
+def paired_bootstrap_pr_auc_difference(
+    y_true,
+    baseline_prob,
+    improved_prob,
+    groups,
+    n_boot=config.BOOTSTRAP_ROUNDS,
+    seed=config.SEED,
+):
+    """
+    Calculate a 95% confidence interval for:
+    improved PR-AUC - baseline PR-AUC.
+
+    Resamples whole patients and evaluates both models
+    on exactly the same bootstrap sample.
+    """
+    y_true = np.asarray(y_true)
+    baseline_prob = np.asarray(baseline_prob)
+    improved_prob = np.asarray(improved_prob)
+    groups = np.asarray(groups)
+
+    if not (
+        len(y_true)
+        == len(baseline_prob)
+        == len(improved_prob)
+        == len(groups)
+    ):
+        raise ValueError("All inputs must contain the same number of rows.")
+
+    # Group appointment rows by patient.
+    members = list(
+        pd.Series(np.arange(len(y_true)))
+        .groupby(groups)
+        .indices.values()
+    )
+
+    rng = np.random.default_rng(seed)
+    differences = []
+
+    # Observed difference on the original test dataset.
+    observed_difference = (
+        average_precision_score(y_true, improved_prob)
+        - average_precision_score(y_true, baseline_prob)
+    )
+
+    for _ in range(n_boot):
+        # Sample patients, allowing a patient to be selected more than once.
+        picked = rng.integers(0, len(members), size=len(members))
+        rows = np.concatenate([members[i] for i in picked])
+
+        yt = y_true[rows]
+
+        # PR-AUC requires both classes to be present.
+        if np.unique(yt).size < 2:
+            continue
+
+        baseline_score = average_precision_score(
+            yt, baseline_prob[rows]
+        )
+        improved_score = average_precision_score(
+            yt, improved_prob[rows]
+        )
+
+        # Paired difference: both models use the same sampled patients.
+        differences.append(improved_score - baseline_score)
+
+    if not differences:
+        interval = None
+    else:
+        interval = {
+            "low": _r(np.percentile(differences, 2.5)),
+            "high": _r(np.percentile(differences, 97.5)),
+        }
+
+    return {
+        "observed_difference": _r(observed_difference),
+        "confidence_interval_95": interval,
+        "bootstrap_rounds_requested": n_boot,
+        "bootstrap_rounds_used": len(differences),
+    }
+
 
 
 def calibration_points(y_true, y_prob, bins=10):
@@ -163,3 +246,102 @@ def permutation_summary(model, X, y_true, seed=config.SEED, n_repeats=5):
         for name, mean, std in zip(X.columns, result.importances_mean, result.importances_std)
     ]
     return sorted(rows, key=lambda row: row["mean_drop_in_pr_auc"], reverse=True)
+
+
+
+
+def risk_band(probability, high_cutpoint, medium_cutpoint):
+    if probability >= high_cutpoint:
+        return "HIGH"
+    if probability >= medium_cutpoint:
+        return "MEDIUM"
+    return "LOW"
+
+
+def band_cutpoints(val_prob, threshold, low_quantile=config.LOW_BAND_QUANTILE):
+    """HIGH starts at the operating threshold; LOW/MEDIUM split at a validation quantile."""
+    medium = float(np.quantile(val_prob, low_quantile))
+    return {"MEDIUM": min(medium, float(threshold)), "HIGH": float(threshold)}
+
+
+def typical_ranges(train_df):
+    """1st to 99th percentile of each numeric feature in the TRAINING data."""
+    result = {}
+    for name in schema.NUMERIC_FEATURES:
+        low, high = train_df[name].quantile([0.01, 0.99])
+        result[name] = [_r(low, 2), _r(high, 2)]
+    return result
+
+
+def coefficient_table(model):
+    """Logistic Regression weights: positive raises the estimated no-show likelihood."""
+    names = model.named_steps["prep"].get_feature_names_out()
+    coefficients = model.named_steps["model"].coef_[0]
+    rows = [
+        {"feature": str(name).split("__", 1)[-1], "coefficient": _r(value), "odds_ratio": _r(np.exp(value))}
+        for name, value in zip(names, coefficients)
+    ]
+    return sorted(rows, key=lambda row: abs(row["coefficient"]), reverse=True)
+
+
+def bootstrap_difference(y_true, prob_a, prob_b, groups, n_boot=config.BOOTSTRAP_ROUNDS, seed=config.SEED):
+    """95% interval for PR-AUC(a) minus PR-AUC(b), using the SAME patient resamples for both."""
+    y_true = np.asarray(y_true)
+    prob_a = np.asarray(prob_a)
+    prob_b = np.asarray(prob_b)
+    rng = np.random.default_rng(seed)
+    members = list(pd.Series(np.arange(len(y_true))).groupby(np.asarray(groups)).indices.values())
+    gaps = []
+    for _ in range(n_boot):
+        picked = rng.integers(0, len(members), size=len(members))
+        rows = np.concatenate([members[i] for i in picked])
+        yt = y_true[rows]
+        if yt.min() == yt.max():
+            continue
+        gaps.append(average_precision_score(yt, prob_a[rows]) - average_precision_score(yt, prob_b[rows]))
+    if not gaps:
+        return None
+    return {
+        "mean": _r(np.mean(gaps)),
+        "low": _r(np.percentile(gaps, 2.5)),
+        "high": _r(np.percentile(gaps, 97.5)),
+    }
+
+
+def band_table(y_true, y_prob, high_cutpoint, medium_cutpoint):
+    """Observed no-show rate inside each risk band (should rise from LOW to HIGH)."""
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    labels = np.where(y_prob >= high_cutpoint, "HIGH", np.where(y_prob >= medium_cutpoint, "MEDIUM", "LOW"))
+    rows = []
+    for band in ("LOW", "MEDIUM", "HIGH"):
+        mask = labels == band
+        count = int(mask.sum())
+        rows.append({
+            "band": band,
+            "n": count,
+            "share": _r(count / len(y_true)),
+            "no_show_rate": _r(y_true[mask].mean()) if count else None,
+        })
+    return rows
+
+
+def capacity_table(y_true, y_prob, shares=(0.1, 0.2, 0.3)):
+    """If staff can only act on the top X% of appointments, how good is that list?"""
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    order = np.argsort(-y_prob, kind="stable")
+    base_rate = y_true.mean()
+    rows = []
+    for share in shares:
+        count = max(1, int(round(share * len(y_true))))
+        top = y_true[order[:count]]
+        precision = top.mean()
+        rows.append({
+            "flag_top_share": share,
+            "flagged": count,
+            "precision": _r(precision),
+            "recall": _r(top.sum() / y_true.sum()),
+            "lift": _r(precision / base_rate),
+        })
+    return rows
