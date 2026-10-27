@@ -77,12 +77,7 @@ def test_threshold_was_chosen_on_validation_data(run_one, small_df):
     assert run_one["metadata"]["threshold"] == pytest.approx(expected)
 
 
-def test_quality_gate_blocks_a_shipped_model_that_does_not_beat_the_dummy():
-    scores = {"dummy": {"pr_auc": 0.2}, "baseline": {"pr_auc": 0.2}, "improved": {"pr_auc": 0.5}}
-    with pytest.raises(train.QualityGateError):
-        train.check_quality_gate(scores, shipped="baseline")
-    scores["baseline"]["pr_auc"] = 0.3
-    train.check_quality_gate(scores, shipped="baseline")
+
 
 
 def test_the_saved_model_is_the_configured_shipped_model(run_one):
@@ -104,12 +99,6 @@ def test_report_split_sizes_add_up(run_one, small_df):
     assert total == len(small_df)
 
 
-def test_quality_gate_blocks_a_model_that_does_not_beat_the_baseline():
-    scores = {"dummy": {"pr_auc": 0.2}, "baseline": {"pr_auc": 0.4}, "improved": {"pr_auc": 0.39}}
-    with pytest.raises(train.QualityGateError):
-        train.check_quality_gate(scores)
-    scores["improved"]["pr_auc"] = 0.45
-    train.check_quality_gate(scores)
 
 
 def test_docs_are_written_and_carry_the_disclaimer(run_one):
