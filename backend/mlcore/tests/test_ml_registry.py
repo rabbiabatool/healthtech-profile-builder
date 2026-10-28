@@ -103,3 +103,13 @@ def test_public_info_hides_internal_details(small_artifact_dir):
     assert "artifact_sha256" not in info
     assert "library_versions" not in info
     assert {"input_schema", "limitations", "disclaimer", "threshold", "model_type"} <= set(info)
+
+
+
+def test_demo_prints_a_real_response(small_artifact_dir, capsys):
+    from mlcore import demo
+
+    response = demo.main(small_artifact_dir)
+    printed = capsys.readouterr().out
+    assert '"probability"' in printed
+    assert response["disclaimer"] in printed
