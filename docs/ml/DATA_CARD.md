@@ -49,10 +49,10 @@ when the patient did not attend, which is why it must never be a feature.
 ## Observed values (from docs/ml/eda/eda_summary.json)
 | Item | Value |
 |---|---|
-| Rows | (copy from eda_summary.json) |
-| Unique patients | (copy from eda_summary.json) |
-| No-show rate | (copy from eda_summary.json) |
-| Dataset SHA-256 | (copy from eda_summary.json) |
+| Rows | 20000 |
+| Unique patients | 5765 |
+| No-show rate | 0.1991 |
+| Dataset SHA-256 | e86a485d5b11cb669df9c2c0e09496edaf29f4f7a557868e2542c876ad4f377b |
 
 ## Bias and fairness
 Gender, ethnicity, religion, disability, neighbourhood and similar attributes
