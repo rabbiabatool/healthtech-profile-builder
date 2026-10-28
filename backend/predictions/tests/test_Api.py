@@ -12,9 +12,8 @@ PREDICT_URL = "/api/v1/ml/no-show/predict"
 MODEL_URL = "/api/v1/ml/model"
 ROLES = [access.ADMIN_ROLE, *access.MEMBER_ROLES]
 
-
 def _user(role):
-    return SimpleNamespace(is_authenticated=True, role=role)
+    return SimpleNamespace(is_authenticated=True, is_active=True, role=role)
 
 
 def _post(payload=None, role=access.ADMIN_ROLE, raw=None, format="json"):

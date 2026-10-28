@@ -76,3 +76,17 @@ class PredictionInputSerializer(serializers.Serializer):
                 {"previous_no_shows": "Cannot be greater than previous_appointments."}
             )
         return attrs
+
+
+
+
+class PredictionResultSerializer(serializers.Serializer):
+    """Describes the response for the API documentation. Not used to validate input."""
+
+    model_version = serializers.CharField()
+    schema_version = serializers.CharField()
+    probability = serializers.FloatField(min_value=0, max_value=1)
+    risk_band = serializers.ChoiceField(choices=["LOW", "MEDIUM", "HIGH"])
+    threshold = serializers.FloatField()
+    input_warnings = serializers.ListField(child=serializers.CharField())
+    disclaimer = serializers.CharField()
