@@ -12,8 +12,25 @@ ADMIN_ONLY = {"anonymous": 401, "member_a": 401, "member_b": 401, "admin": 200}
 OWNER_ONLY = {"anonymous": 401, "member_a": 200, "member_b": 404, "admin": 401}
 
 ROUTES = [
+    # Root profile lifecycle
     ("get", "/api/profiles/me", None, MEMBER_ONLY),
+    # POST /me: both members already have a profile in the world fixture, so 409.
+    (
+        "post",
+        "/api/profiles/me",
+        {},
+        {"anonymous": 401, "member_a": 409, "member_b": 409, "admin": 401},
+    ),
+    # DELETE /me: each member deletes their own profile.
+    (
+        "delete",
+        "/api/profiles/me",
+        None,
+        {"anonymous": 401, "member_a": 204, "member_b": 204, "admin": 401},
+    ),
+    # PATCH /me is not allowed at the root level – use section endpoints.
     ("patch", "/api/profiles/me", {"status": "INACTIVE"}, {"anonymous": 401, "member_a": 405, "member_b": 405, "admin": 401}),
+    # Section endpoints
     ("get", "/api/profiles/me/demographics", None, MEMBER_ONLY),
     ("patch", "/api/profiles/me/demographics", {"country": "Canada"}, MEMBER_ONLY),
     ("delete", "/api/profiles/me/demographics", None, MEMBER_ONLY),
@@ -35,6 +52,7 @@ ROUTES = [
         None,
         {"anonymous": 401, "member_a": 204, "member_b": 404, "admin": 401},
     ),
+    # Admin routes
     ("get", "/api/admin/me", None, ADMIN_ONLY),
     ("get", "/api/admin/profiles", None, ADMIN_ONLY),
     ("get", "/api/admin/profiles/{profile_id}", None, ADMIN_ONLY),

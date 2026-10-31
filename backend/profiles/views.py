@@ -25,8 +25,37 @@ class MemberBaseView(APIView):
         return get_object_or_404(HealthProfile, user=self.request.user)
 
 
-class MyProfileView(MemberBaseView):
+class MyProfileView(APIView):
+    """
+    GET  /api/profiles/me  – read the authenticated member's own profile.
+                             Returns 404 if no profile exists yet.
+
+    POST /api/profiles/me  – create the profile for the authenticated member.
+                             Returns 201 on success.
+                             Returns 409 if a profile already exists.
+
+    DELETE /api/profiles/me – delete the authenticated member's own profile.
+                              Retains the user account.
+                              Historical audit records are preserved.
+                              The same account may POST a new profile afterwards.
+                              Returns 204 on success.
+                              Returns 404 if no profile exists.
+
+    PATCH /api/profiles/me – NOT ALLOWED (405).
+                             Use the section-level endpoints to edit profile data.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStandardUser]
+    # NOTE: ProfileIsEditable is deliberately NOT listed here at the class
+    # level.  GET and POST work regardless of status (no profile exists for
+    # POST; a deactivated profile should still be readable on GET).  DELETE
+    # has its own business rule (any active member may delete their profile).
+    # Section-level writes continue to use ProfileIsEditable via MemberBaseView.
+    http_method_names = ["get", "post", "delete", "head", "options"]
+
     def get(self, request):
+        """Read the authenticated member's profile. 404 if none exists."""
         profile = get_object_or_404(
             HealthProfile.objects.select_related("user", "demographics", "wellness").prefetch_related(
                 "emergency_contacts"
@@ -34,6 +63,47 @@ class MyProfileView(MemberBaseView):
             user=request.user,
         )
         return Response(MyProfileSerializer(profile).data)
+
+    def post(self, request):
+        """
+        Create the profile for the authenticated member.
+
+        - Owner is always the authenticated user; any owner field in the
+          request body is ignored.
+        - Returns 201 with the full profile representation on success.
+        - Returns 409 if the member already has a profile.
+        """
+        try:
+            profile = services.create_profile(request.user, actor=request.user)
+        except Exception as exc:
+            # Catch the ValidationError raised by create_profile for duplicates.
+            from rest_framework.exceptions import ValidationError
+            if isinstance(exc, ValidationError) and getattr(exc, "detail", {}).get("detail") == "A profile already exists for this account.":
+                return Response(
+                    {"detail": "A profile already exists for this account."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            raise
+
+        # Reload with related sections so the serializer has full data.
+        profile = HealthProfile.objects.select_related("user", "demographics", "wellness").prefetch_related(
+            "emergency_contacts"
+        ).get(pk=profile.pk)
+        return Response(MyProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        """
+        Delete the authenticated member's own profile.
+
+        - The user account is NOT deleted.
+        - Historical audit records survive because AuditEvent.profile_id is a
+          plain BigIntegerField (no FK cascade).
+        - Returns 204 on success.
+        - Returns 404 if no profile exists.
+        """
+        profile = get_object_or_404(HealthProfile, user=request.user)
+        services.delete_profile(profile, actor=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SectionView(MemberBaseView):
