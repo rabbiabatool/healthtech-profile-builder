@@ -29,8 +29,9 @@ MODEL_VERSION = "noshow-1.0.0"
 SCHEMA_VERSION = "v1"
 ARTIFACT_FILENAME = f"{MODEL_VERSION}.joblib"
 METADATA_FILENAME = f"{MODEL_VERSION}.meta.json"
+SUPERVISED_COMPARISON_FILENAME = "supervised_comparison.json"
 BOOTSTRAP_ROUNDS = 1000
-# MEDIUM_BAND_FRACTION = 0.5
+MEDIUM_BAND_FRACTION = 0.5
 LOW_BAND_QUANTILE = 0.35
 
 LIMITATIONS = [
@@ -41,20 +42,22 @@ LIMITATIONS = [
 ]
 
 
-
-# --- Phase 10.2: which model is shipped -------------------------------------
+# --- Phase 10.2 & Week 4: which model is shipped and model taxonomy --------
 SHIPPED_MODEL = "baseline"
 
 MODEL_LABELS = {
     "dummy": "Dummy (always the base rate)",
     "baseline": "Logistic Regression (baseline)",
-    "improved": "Gradient Boosting + calibration (improved)",
+    "random_forest": "Random Forest (bagging ensemble)",
+    "improved": "HistGradientBoosting + calibration (boosting)",
+    "tuned_rf": "Tuned Random Forest (GridSearchCV)",
 }
 
 MODEL_TYPES = {
-    "baseline": "LogisticRegression inside one scikit-learn Pipeline "
-                "(median imputation with a missing flag, scaling, one-hot encoding)",
+    "baseline": "LogisticRegression inside one scikit-learn Pipeline (median imputation with a missing flag, scaling, one-hot encoding)",
+    "random_forest": "RandomForestClassifier inside one scikit-learn Pipeline (median imputation, scaling, one-hot encoding)",
     "improved": "HistGradientBoostingClassifier with sigmoid calibration, inside one scikit-learn Pipeline",
+    "tuned_rf": "RandomForestClassifier tuned with StratifiedGroupKFold GridSearchCV inside one scikit-learn Pipeline",
 }
 
 SHIPPED_MODEL_REASON = (

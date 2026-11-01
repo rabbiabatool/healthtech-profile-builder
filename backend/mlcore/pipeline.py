@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedGroupKFold
@@ -38,7 +38,7 @@ def build_baseline_preprocessor():
             ("numeric", numeric, schema.NUMERIC_FEATURES),
             (
                 "categorical",
-                OneHotEncoder(categories=_category_lists(), handle_unknown="error", sparse_output=False),
+                OneHotEncoder(categories=_category_lists(), handle_unknown="ignore", sparse_output=False),
                 schema.CATEGORICAL_FEATURES,
             ),
             ("boolean", "passthrough", schema.BOOLEAN_FEATURES),
@@ -54,6 +54,22 @@ def build_baseline(C=1.0, seed=config.SEED):
     ])
 
 
+def build_random_forest(n_estimators=100, max_depth=None, min_samples_split=2, seed=config.SEED):
+    """Random Forest classifier with median imputation, scaling, and one-hot encoding."""
+    return Pipeline([
+        ("prep", build_baseline_preprocessor()),
+        (
+            "model",
+            RandomForestClassifier(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                random_state=seed,
+                n_jobs=-1,
+            ),
+        ),
+    ])
+
 
 def build_tree_preprocessor():
     """Gradient boosting needs no scaling and handles empty values itself."""
@@ -62,7 +78,7 @@ def build_tree_preprocessor():
             ("numeric", "passthrough", schema.NUMERIC_FEATURES),
             (
                 "categorical",
-                OrdinalEncoder(categories=_category_lists(), handle_unknown="error"),
+                OrdinalEncoder(categories=_category_lists(), handle_unknown="use_encoded_value", unknown_value=-1),
                 schema.CATEGORICAL_FEATURES,
             ),
             ("boolean", "passthrough", schema.BOOLEAN_FEATURES),

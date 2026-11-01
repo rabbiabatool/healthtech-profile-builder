@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
@@ -7,7 +10,8 @@ from rest_framework.views import APIView
 
 from accounts.authentication import CookieJWTAuthentication
 from accounts.permissions import IsStandardUser
-from mlcore import registry
+from mlcore import config, registry
+from mlcore.supervised_workbench import train_and_evaluate_all
 from predictions.serializers import PredictionInputSerializer
 
 ML_TAG = "No-show estimate (educational ML)"
@@ -68,6 +72,41 @@ class ModelInfoView(MemberMLBaseView):
         except registry.ModelUnavailable as error:
             return _unavailable(error)
         return Response(registry.public_model_info(loaded.metadata))
+
+
+class SupervisedComparisonView(MemberMLBaseView):
+    """GET /api/v1/ml/models/comparison: returns the supervised workbench evaluation and comparison report."""
+
+    @extend_schema(
+        summary="Compare supervised classification models",
+        description=(
+            "Returns comparative metrics (PR-AUC, ROC-AUC, F1, Precision, Recall, Specificity, Brier score), "
+            "train vs validation gaps (overfitting analysis), confusion matrices, GridSearchCV hyperparameter "
+            "tuning results, and false positive / negative error analysis for Logistic Regression, Random Forest, "
+            "and Gradient Boosting."
+        ),
+        tags=[ML_TAG],
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="Supervised comparison workbench report."),
+            401: UNAUTHENTICATED,
+            403: FORBIDDEN,
+            503: UNAVAILABLE,
+        },
+    )
+    def get(self, request):
+        artifact_file = Path(config.ARTIFACT_DIR) / config.SUPERVISED_COMPARISON_FILENAME
+        if artifact_file.exists():
+            try:
+                data = json.loads(artifact_file.read_text(encoding="utf-8"))
+                return Response(data)
+            except Exception as e:
+                return _unavailable(f"Failed to read comparison artifact: {e}")
+
+        try:
+            data = train_and_evaluate_all(run_tuning=False)
+            return Response(data)
+        except Exception as e:
+            return _unavailable(e)
 
 
 class NoShowPredictView(MemberMLBaseView):

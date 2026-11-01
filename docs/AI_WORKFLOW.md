@@ -218,3 +218,40 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
   - Member flow verified: Authenticated member with JWT cookie retrieves model info (200) and executes prediction with CSRF (200).
   - Admin access blocked: Authenticated admin session rejected from model info (401) and predictions (401). Admin user with JWT rejected with 403 ("Standard user access only.").
   - Admin predictions route: `GET /api/admin/predictions` confirmed 404 (non-existent).
+
+
+### E11: Week 4 Phase 1 – Supervised Learning Comparative Workbench & Hyperparameter Tuning (2026-11-02, branch `week4-phase1-supervised-workbench`)
+- Goal: Expand the single-model ML setup into a comparative supervised learning workbench training Logistic Regression, Random Forest, and Gradient Boosting, with GridSearchCV hyperparameter tuning, train-vs-validation overfitting checks, permutation feature importance, confusion matrices, and false positive / negative error analysis.
+- Prompt (verbatim, secrets removed):
+  > WEEK 4 | Supervised + Unsupervised ML and LLM Foundations [...] Supervised learning: prepare a synthetic appointment-attendance or wellness-engagement dataset; clearly define features, labels, split strategy and leakage checks. Train at least three algorithms: Logistic Regression, Random Forest, and one of Gradient Boosting/XGBoost or SVM. Evaluate classification with confusion matrix, precision, recall, F1, ROC-AUC and PR-AUC when appropriate; compare train versus validation performance, perform stratified cross-validation and tune one model with GridSearchCV or RandomizedSearchCV. Explain feature importance or permutation importance and inspect false positives/negatives. Include a reproducible preprocessing pipeline for imputation, encoding and scaling as appropriate. [...] Acceptance checks: Provide a metrics comparison table for three supervised models, confusion matrix, one tuning experiment and a reproducible saved pipeline. [...] We will implement above task in 4 phases and in different branches , not commiting them to main branch and save evidence of tests and update AI documentation. Our flow for each phase will be: design or build, test and commit. Start phase 1
+- What the AI proposed:
+  - Dataset & Leakage Protection: Utilized the 20,000 synthetic clinical appointment dataset with 9 input features. Validated that patient-grouped splitting (`StratifiedGroupKFold` / `GroupShuffleSplit`) guarantees zero patient overlap across train (60%), validation (20%), and test (20%) splits.
+  - Preprocessing Pipelines: Built scikit-learn `Pipeline` and `ColumnTransformer` setups ensuring train-only fitting. Handled numeric features with median imputation and missingness indicators, scaled continuous values, and applied one-hot encoding for categorical variables.
+  - Algorithm Suite:
+    1. Baseline Floor: `DummyClassifier`
+    2. Linear Model: `LogisticRegression` with L2 regularisation
+    3. Bagging Ensemble: `RandomForestClassifier`
+    4. Boosting Ensemble: `HistGradientBoostingClassifier`
+    5. Tuned Ensemble: `RandomForestClassifier` tuned via `GridSearchCV`
+  - Hyperparameter Tuning: Conducted a 3-fold patient-grouped `StratifiedGroupKFold` `GridSearchCV` on the training split, optimizing for PR-AUC across tree depth, estimator counts, and split thresholds (`{'model__max_depth': 6, 'model__min_samples_split': 10, 'model__n_estimators': 100}`, achieving CV PR-AUC = 0.3131).
+  - Train vs. Validation Overfitting Analysis: Evaluated all algorithms across Train, Validation, and Test splits. Identified that unconstrained Random Forest overfits (Train-Val gap = +0.4180), whereas depth-constrained tuned Random Forest (+0.0835) and regularized Logistic Regression (-0.0051) generalize stably.
+  - Error Analysis: Inspected False Positives (driven by high lead times and past no-show counts where patients attended anyway) and False Negatives (short lead times and clean histories where unexpected personal conflicts caused an absence).
+  - API & Artifacts: Added `GET /api/v1/ml/models/comparison` view with member JWT authentication and OpenAPI schema documentation. Generated `backend/ml_artifacts/supervised_comparison.json` and `docs/ml/SUPERVISED_COMPARISON.md`.
+- Scope:
+  - Files created/modified:
+    - `backend/mlcore/config.py`
+    - `backend/mlcore/pipeline.py`
+    - `backend/mlcore/evaluate.py`
+    - `backend/mlcore/supervised_workbench.py`
+    - `backend/predictions/views.py`
+    - `backend/predictions/urls.py`
+    - `backend/mlcore/tests/test_ml_supervised_workbench.py`
+    - `backend/predictions/tests/test_comparison_api.py`
+    - `docs/ml/SUPERVISED_COMPARISON.md`
+    - `backend/ml_artifacts/supervised_comparison.json`
+    - `docs/evidence/week4/phase1-supervised-tests.txt`
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to ML core and predictions application. Existing member profile APIs, accounts, admin sessions, and audit logging remain completely unaffected.
+- Validation:
+  - Test suite: `pytest backend/mlcore/tests/test_ml_supervised_workbench.py backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 78 passed (evidence recorded in `docs/evidence/week4/phase1-supervised-tests.txt`).
+  - OpenAPI validation: `pytest backend/tests/test_api_docs.py`: 10 passed (100%).

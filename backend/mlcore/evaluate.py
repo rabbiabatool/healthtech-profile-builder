@@ -345,3 +345,75 @@ def capacity_table(y_true, y_prob, shares=(0.1, 0.2, 0.3)):
             "lift": _r(precision / base_rate),
         })
     return rows
+
+
+
+def full_classification_report(y_true, y_prob, threshold=0.5):
+    """Full suite of classification metrics and confusion matrix at a chosen operating threshold."""
+    from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    predicted = (y_prob >= threshold).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_true, predicted, labels=[0, 1]).ravel()
+
+    accuracy = accuracy_score(y_true, predicted)
+    precision = precision_score(y_true, predicted, zero_division=0)
+    recall = recall_score(y_true, predicted, zero_division=0)
+    f1 = f1_score(y_true, predicted, zero_division=0)
+    specificity = tn / (tn + fp) if (tn + fp) else 0.0
+
+    scores = score_probabilities(y_true, y_prob)
+
+    return {
+        "accuracy": _r(accuracy),
+        "precision": _r(precision),
+        "recall": _r(recall),
+        "specificity": _r(specificity),
+        "f1": _r(f1),
+        "roc_auc": scores["roc_auc"],
+        "pr_auc": scores["pr_auc"],
+        "brier": scores["brier"],
+        "log_loss": scores["log_loss"],
+        "threshold": _r(threshold),
+        "confusion_matrix": {
+            "tn": int(tn),
+            "fp": int(fp),
+            "fn": int(fn),
+            "tp": int(tp),
+        },
+    }
+
+
+def analyze_errors(df_features, y_true, y_prob, threshold):
+    """Inspect characteristics of false positives and false negatives."""
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    predicted = (y_prob >= threshold).astype(int)
+
+    df = df_features.copy()
+    df["y_true"] = y_true
+    df["y_prob"] = np.round(y_prob, 4)
+    df["predicted"] = predicted
+
+    fp_mask = (y_true == 0) & (predicted == 1)
+    fn_mask = (y_true == 1) & (predicted == 0)
+
+    fp_profile = {
+        "count": int(fp_mask.sum()),
+        "mean_lead_time": _r(df.loc[fp_mask, "lead_time_days"].mean()) if fp_mask.any() else None,
+        "mean_previous_no_shows": _r(df.loc[fp_mask, "previous_no_shows"].mean()) if fp_mask.any() else None,
+        "mean_predicted_prob": _r(df.loc[fp_mask, "y_prob"].mean()) if fp_mask.any() else None,
+        "explanation": "Predicted no-show but attended. Driven by long lead times and past missed appointments where the patient attended anyway.",
+    }
+    fn_profile = {
+        "count": int(fn_mask.sum()),
+        "mean_lead_time": _r(df.loc[fn_mask, "lead_time_days"].mean()) if fn_mask.any() else None,
+        "mean_previous_no_shows": _r(df.loc[fn_mask, "previous_no_shows"].mean()) if fn_mask.any() else None,
+        "mean_predicted_prob": _r(df.loc[fn_mask, "y_prob"].mean()) if fn_mask.any() else None,
+        "explanation": "Predicted attend but missed. Driven by short lead times and clean past records where unexpected conflicts caused an absence.",
+    }
+    return {
+        "false_positives": fp_profile,
+        "false_negatives": fn_profile,
+    }
