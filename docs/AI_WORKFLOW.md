@@ -134,3 +134,45 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
   - Command: `pytest -q`. Expected: 0 failed. Actual:`docs/evidence/e8-full-suite-summary.txt`.
   - Command: `python manage.py recalculate_completion --dry-run` after the real run. Expected: `Updated 0 profile(s)`. 
   - Manual: new member, fill only the six required items, optional fields blank; the completion card shows 100% and "Everything is filled in." Delete the demographics section: completion drops to 67%.
+
+
+### E10: Member-only predictions authentication and admin access removal (2026-11-01, branch `phase-13-predictions-auth-fix`)
+- Goal: Fix predictions page returning 403 Forbidden for authenticated members on `GET /api/v1/ml/model`, remove admin access to predictions through `admin/predictions` URL and backend implementation, and ensure administrators cannot access the member's prediction page.
+- Prompt (verbatim, secrets removed):
+  > You are a senior expert full stack AI Engineer. Analyze why predictions page is giving: GET http://localhost:3000/api/v1/ml/model 403 (Forbidden) and button: sign in is shown. although member has logged in and I can see access token and csrf token in cookie section. resolve this isssue so that model can be loaded. Also remove admin  access to predictions page through admin/predictions url and backend implementation for this. And admin should not be able to access member's prediction page. first analyze how profile page of member is guarded from admin access. Except these changings dont do any other change or change previous functionalities.  merge all files or commits of phase-12-dashboard-docs branch and then do all above changings in a seperate branch and tell that branch name , this branch should have all commited files of phase 12 and above changings I have asked. If there is any file to commit in phase-12-dashboard-docs branch , then first do this. Then write any tests and evidence of their execution and succesfulness and updating AI documentaion.md file for this new prompt. The acceptance is : after sign in , member would be able to access model related routes so that prediction page and its functionality would be working and Admin should not be able to access this page , even after sign in and admin should not have its prediction page or this functionality. Other existing functionalities should be changed [note: preserved/unchanged]
+- What the AI proposed:
+  - Root Cause Analysis:
+    1. In `backend/config/settings.py`, `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]` is configured as an empty list (`[]`).
+    2. The views in `backend/predictions/views.py` (`ModelInfoView` and `NoShowPredictView`) did not define `authentication_classes`. Consequently, Django REST Framework performed no authentication on requests to `/api/v1/ml/model` or `/api/v1/ml/no-show/predict`.
+    3. Even when a member was signed in with valid `access_token` and `csrftoken` cookies, `request.user` evaluated to `AnonymousUser` (`is_authenticated == False`).
+    4. The permission class `IsAdminOrMember` in `predictions/access.py` rejected the unauthenticated user with HTTP 403 Forbidden.
+    5. In the frontend component (`NoShowPredictor.js`), status 403 erroneously triggered `setState("signin")`, showing "You need to sign in to use this page" even though the member had already authenticated.
+  - Member Profile Guard Pattern:
+    Analysis of `backend/profiles/views.py` showed that member routes use `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. `CookieJWTAuthentication` strictly reads the HttpOnly `access_token` cookie and verifies CSRF on state-changing requests. `IsStandardUser` strictly verifies `request.user.role == Role.USER`. Administrators, who authenticate via server-side Django session (`admin_session` cookie) with `role == Role.ADMIN`, are rejected with 401 (if no JWT cookie) or 403 ("Standard user access only.").
+  - Architecture Fix:
+    1. In `backend/predictions/views.py`, created `MemberMLBaseView(APIView)` with `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. Refactored `ModelInfoView` and `NoShowPredictView` to inherit from `MemberMLBaseView`.
+    2. In `backend/predictions/access.py`, refactored `IsAdminOrMember` to inherit from `IsStandardUser` (requiring `Role.USER`), removing `ADMIN_ROLE` from allowed roles.
+    3. In `frontend/lib/mlClient.js`, removed admin CSRF routing, routing all prediction requests strictly through `/api/auth/csrf`.
+    4. In `frontend/components/predictions/NoShowPredictor.js`, removed admin title and intro copy. On 401, added check against `/api/admin/me`: if the user is an admin session, state transitions to `"forbidden"` with an explicit message: "Predictions are available for members only. Administrator accounts cannot access this page." On 403, transitions to `"forbidden"`.
+    5. In `backend/config/api_docs.py`, added a guard in `document()` so missing view methods do not cause `AttributeError` during Django schema resolution.
+    6. In `backend/predictions/tests/test_Api.py`, updated test roles to verify members receive 200 while admins receive 403 Forbidden.
+    7. Created `backend/tests/test_predictions_auth.py` containing end-to-end integration tests with Django's test client covering member success, CSRF enforcement, admin session rejection, admin JWT role rejection, anonymous rejection, and non-existence of admin predictions URLs.
+- My refinement: Maintained backwards compatibility for `requestPrediction` in `mlClient.js` to accept either payload or `(mode, payload)`. Kept all existing prediction validation, risk band calculation, and feature schemas untouched.
+- Scope:
+  - Files changed:
+    - `backend/predictions/views.py`
+    - `backend/predictions/access.py`
+    - `backend/predictions/tests/test_Api.py`
+    - `backend/config/api_docs.py`
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `backend/tests/test_predictions_auth.py` (new)
+    - `docs/evidence/e10-predictions-auth-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+  - Files deliberately untouched: All other profile, accounts, admin dashboard, audit, and ML training pipelines.
+- Blast radius: Restricted solely to `/api/v1/ml/*` endpoints and the frontend `/predictions` page. Member profile management, admin profile management, and audit logging are completely unaffected.
+- Validation:
+  - Unit & Integration Tests: `pytest backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 69 passed in 65.20s. Evidence captured in `docs/evidence/e10-predictions-auth-tests.txt`.
+  - Member flow verified: Authenticated member with JWT cookie retrieves model info (200) and executes prediction with CSRF (200).
+  - Admin access blocked: Authenticated admin session rejected from model info (401) and predictions (401). Admin user with JWT rejected with 403 ("Standard user access only.").
+  - Admin predictions route: `GET /api/admin/predictions` confirmed 404 (non-existent).

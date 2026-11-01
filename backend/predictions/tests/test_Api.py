@@ -10,14 +10,15 @@ from predictions.tests.samples import VALID, changed
 factory = APIRequestFactory()
 PREDICT_URL = "/api/v1/ml/no-show/predict"
 MODEL_URL = "/api/v1/ml/model"
-ROLES = [access.ADMIN_ROLE, *access.MEMBER_ROLES]
+MEMBER_ROLE = "USER"
+ADMIN_ROLE = "ADMIN"
 
 
 def _user(role):
-    return SimpleNamespace(is_authenticated=True, role=role)
+    return SimpleNamespace(is_authenticated=True, role=role, is_active=True)
 
 
-def _post(payload=None, role=access.ADMIN_ROLE, raw=None, format="json"):
+def _post(payload=None, role=MEMBER_ROLE, raw=None, format="json"):
     if raw is not None:
         request = factory.post(PREDICT_URL, raw, content_type="application/json")
     else:
@@ -27,16 +28,15 @@ def _post(payload=None, role=access.ADMIN_ROLE, raw=None, format="json"):
     return views.NoShowPredictView.as_view()(request)
 
 
-def _get_model_info(role=access.ADMIN_ROLE):
+def _get_model_info(role=MEMBER_ROLE):
     request = factory.get(MODEL_URL)
     if role is not None:
         force_authenticate(request, user=_user(role))
     return views.ModelInfoView.as_view()(request)
 
 
-@pytest.mark.parametrize("role", ROLES)
-def test_admins_and_members_get_a_prediction(model_ready, role):
-    response = _post(VALID, role=role)
+def test_members_get_a_prediction(model_ready):
+    response = _post(VALID, role=MEMBER_ROLE)
     assert response.status_code == 200
     assert set(response.data) == {
         "model_version", "schema_version", "probability", "risk_band",
@@ -46,6 +46,18 @@ def test_admins_and_members_get_a_prediction(model_ready, role):
     assert response.data["risk_band"] in {"LOW", "MEDIUM", "HIGH"}
     assert response.data["model_version"] == config.MODEL_VERSION
     assert response.data["disclaimer"] == config.DISCLAIMER
+
+
+def test_admins_are_forbidden_from_predictions(model_ready):
+    response = _post(VALID, role=ADMIN_ROLE)
+    assert response.status_code == 403
+    assert "Standard user access only" in str(response.data.get("detail", ""))
+
+
+def test_admins_are_forbidden_from_model_info(model_ready):
+    response = _get_model_info(role=ADMIN_ROLE)
+    assert response.status_code == 403
+    assert "Standard user access only" in str(response.data.get("detail", ""))
 
 
 @pytest.mark.django_db
@@ -95,10 +107,10 @@ def test_form_style_bodies_are_not_accepted(model_ready):
 
 def test_wrong_http_methods_are_refused(model_ready):
     get_request = factory.get(PREDICT_URL)
-    force_authenticate(get_request, user=_user(access.ADMIN_ROLE))
+    force_authenticate(get_request, user=_user(MEMBER_ROLE))
     assert views.NoShowPredictView.as_view()(get_request).status_code == 405
     post_request = factory.post(MODEL_URL, {}, format="json")
-    force_authenticate(post_request, user=_user(access.ADMIN_ROLE))
+    force_authenticate(post_request, user=_user(MEMBER_ROLE))
     assert views.ModelInfoView.as_view()(post_request).status_code == 405
 
 
@@ -120,7 +132,7 @@ def test_a_tampered_model_gives_503(tampered_model):
 
 
 def test_model_info_has_what_a_form_needs_and_hides_internals(model_ready):
-    response = _get_model_info(role=access.MEMBER_ROLES[0])
+    response = _get_model_info(role=MEMBER_ROLE)
     assert response.status_code == 200
     data = response.data
     assert {"input_schema", "limitations", "disclaimer", "threshold", "risk_band_cutpoints"} <= set(data)

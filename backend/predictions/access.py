@@ -1,17 +1,14 @@
-from rest_framework.permissions import BasePermission
+from accounts.permissions import IsStandardUser
 
-# Change these two values if your user model stores different role names.
+# Members only. Admin access to predictions is removed.
 ADMIN_ROLE = "ADMIN"
 MEMBER_ROLES = ("USER",)
 
 
-class IsAdminOrMember(BasePermission):
-    """Signed-in admins and members only. Anonymous callers and unknown roles are refused."""
+class IsAdminOrMember(IsStandardUser):
+    """Refactored access class: enforces standard member access only.
 
-    message = "You must be signed in as an admin or a member to use this feature."
+    Admins and anonymous callers are strictly refused.
+    """
 
-    def has_permission(self, request, view):
-        user = request.user
-        if not (user and user.is_authenticated):
-            return False
-        return getattr(user, "role", None) in {ADMIN_ROLE, *MEMBER_ROLES}
+    message = "Standard user access only. Administrator access to predictions is not allowed."

@@ -44,6 +44,8 @@ Detail = inline_serializer("Detail", {"detail": serializers.CharField()})
 
 
 def document(view_class, method, **schema):
+    if not hasattr(view_class, method):
+        return
     original = getattr(view_class, method)
 
     @wraps(original)

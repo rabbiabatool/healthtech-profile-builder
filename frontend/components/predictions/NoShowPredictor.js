@@ -18,23 +18,15 @@ import {
   splitErrors,
 } from "./predictorConfig";
 
-// Change these two paths if your sign-in pages live somewhere else.
-const LOGIN_PATH = { admin: "/admin/login", member: "/login" };
+const LOGIN_PATH = "/login";
 
 const COPY = {
-  admin: {
-    title: "No-show estimate (admin)",
-    intro:
-      "Try the educational model on a fictional appointment. Nothing you enter is saved, and no member data is used.",
-  },
-  member: {
-    title: "No-show estimate (educational)",
-    intro:
-      "See how an educational model estimates the chance that a fictional appointment is missed. Nothing you enter is saved, and your own profile is never used.",
-  },
+  title: "No-show estimate (educational)",
+  intro:
+    "See how an educational model estimates the chance that a fictional appointment is missed. Nothing you enter is saved, and your own profile is never used.",
 };
 
-export default function NoShowPredictor({ mode }) {
+export default function NoShowPredictor({ mode = "member" }) {
   const [state, setState] = useState("loading");
   const [info, setInfo] = useState(null);
   const [values, setValues] = useState(PRESETS[0].values);
@@ -47,13 +39,26 @@ export default function NoShowPredictor({ mode }) {
   useEffect(() => {
     let active = true;
     fetchModelInfo()
-      .then(({ status, data }) => {
+      .then(async ({ status, data }) => {
         if (!active) return;
         if (status === 200) {
           setInfo(data);
           setState("ready");
-        } else if (status === 401 || status === 403) {
-          setState("signin");
+        } else if (status === 401) {
+          // Check if an admin is currently signed in; if so, show forbidden message
+          try {
+            const adminRes = await fetch("/api/admin/me", { credentials: "include", cache: "no-store" });
+            if (!active) return;
+            if (adminRes.status === 200) {
+              setState("forbidden");
+              return;
+            }
+          } catch {
+            // ignore network check error
+          }
+          if (active) setState("signin");
+        } else if (status === 403) {
+          setState("forbidden");
         } else if (status === 503) {
           setState("unavailable");
         } else {
@@ -91,7 +96,7 @@ export default function NoShowPredictor({ mode }) {
     setFieldErrors({});
     setGeneral([]);
     try {
-      const { status, data } = await requestPrediction(mode, buildPayload(values, info));
+      const { status, data } = await requestPrediction(buildPayload(values, info));
       if (status === 200) {
         setResult(data);
       } else {
@@ -103,7 +108,7 @@ export default function NoShowPredictor({ mode }) {
         } else if (status === 401) {
           setState("signin");
         } else if (status === 403) {
-          setGeneral(["Your session or security token was rejected. Reload the page or sign in again."]);
+          setGeneral(["Access denied: member session or security token required."]);
         } else if (status === 503) {
           setGeneral([data?.detail ?? "The model is not available right now."]);
         } else {
@@ -118,7 +123,7 @@ export default function NoShowPredictor({ mode }) {
   }
 
   function renderField(name) {
-    const id = `${mode}-${name}`;
+    const id = `member-${name}`;
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
     const error = fieldErrors[name];
@@ -203,18 +208,24 @@ export default function NoShowPredictor({ mode }) {
 
   return (
     <section className={styles.page} aria-labelledby="ml-page-title">
-      <h1 id="ml-page-title">{COPY[mode].title}</h1>
+      <h1 id="ml-page-title">{COPY.title}</h1>
       <p role="note" className={styles.banner}>
         <strong>Educational, synthetic, not clinical.</strong> {disclaimer}
       </p>
-      <p>{COPY[mode].intro}</p>
+      <p>{COPY.intro}</p>
 
       {state === "loading" && <p>Loading model details…</p>}
 
       {state === "signin" && (
         <p>
-          You need to sign in to use this page. <Link href={LOGIN_PATH[mode]}>Go to sign in</Link>.
+          You need to sign in as a member to use this page. <Link href={LOGIN_PATH}>Go to sign in</Link>.
         </p>
+      )}
+      {state === "forbidden" && (
+        <div role="alert" className={styles.errorSummary}>
+          <strong>Access denied.</strong>
+          <p>Predictions are available for members only. Administrator accounts cannot access this page.</p>
+        </div>
       )}
       {state === "unavailable" && (
         <p role="alert">The model is not available right now. Ask an administrator to rebuild it.</p>

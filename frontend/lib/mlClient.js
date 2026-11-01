@@ -1,8 +1,7 @@
-// Talks to the Week 3 prediction API.
-// If your other pages call the backend through a different base URL, change API_BASE only.
+// Talks to the Week 3 prediction API (Member only).
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-const CSRF_PATH = { admin: "/api/admin/csrf", member: "/api/auth/csrf" };
+const CSRF_PATH = "/api/auth/csrf";
 
 async function readJson(response) {
   try {
@@ -20,8 +19,10 @@ export async function fetchModelInfo() {
   return { status: response.status, data: await readJson(response) };
 }
 
-export async function requestPrediction(mode, payload) {
-  const csrfResponse = await fetch(`${API_BASE}${CSRF_PATH[mode]}`, {
+export async function requestPrediction(modeOrPayload, maybePayload) {
+  const payload = maybePayload !== undefined ? maybePayload : modeOrPayload;
+
+  const csrfResponse = await fetch(`${API_BASE}${CSRF_PATH}`, {
     credentials: "include",
     cache: "no-store",
   });
