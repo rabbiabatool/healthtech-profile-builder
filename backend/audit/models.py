@@ -25,6 +25,9 @@ class AuditAction(models.TextChoices):
     ADMIN_SEARCH_PERFORMED = "ADMIN_SEARCH_PERFORMED", "Profile search performed"
     ADMIN_PROFILE_DEACTIVATED = "ADMIN_PROFILE_DEACTIVATED", "Profile deactivated"
     ADMIN_PROFILE_REACTIVATED = "ADMIN_PROFILE_REACTIVATED", "Profile reactivated"
+    # Week 2: root profile lifecycle events
+    PROFILE_CREATED = "PROFILE_CREATED", "Profile created"
+    PROFILE_DELETED = "PROFILE_DELETED", "Profile deleted"
 
 
 class ActorRole(models.TextChoices):

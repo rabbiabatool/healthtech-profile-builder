@@ -16,6 +16,8 @@ EXPECTED_OPERATIONS = {
     ("/api/auth/refresh", "post"),
     ("/api/auth/user/logout", "post"),
     ("/api/profiles/me", "get"),
+    ("/api/profiles/me", "post"),
+    ("/api/profiles/me", "delete"),
     ("/api/profiles/me/demographics", "get"),
     ("/api/profiles/me/demographics", "patch"),
     ("/api/profiles/me/demographics", "delete"),

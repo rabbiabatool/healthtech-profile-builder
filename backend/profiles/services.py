@@ -7,7 +7,7 @@ from audit.models import AuditAction
 from audit.services import record_event
 
 from .completion import calculate_completion
-from .models import Demographics, EmergencyContact, HealthProfile, WellnessPreferences
+from .models import Demographics, EmergencyContact, HealthProfile, ProfileStatus, WellnessPreferences
 
 MAX_EMERGENCY_CONTACTS = 3
 
@@ -39,6 +39,57 @@ def create_profile_with_sections(user):
     Demographics.objects.create(profile=profile)
     WellnessPreferences.objects.create(profile=profile)
     return profile
+
+
+@transaction.atomic
+def create_profile(user, *, actor):
+    """
+    Create a new health profile for *user*, initialise its related sections,
+    and emit a PROFILE_CREATED audit event.
+
+    Raises ValidationError with a 409-compatible error dict if the user
+    already has a profile.
+    """
+    if HealthProfile.objects.filter(user=user).exists():
+        raise ValidationError(
+            {"detail": "A profile already exists for this account."},
+            code="duplicate",
+        )
+    profile = HealthProfile.objects.create(user=user)
+    Demographics.objects.create(profile=profile)
+    WellnessPreferences.objects.create(profile=profile)
+    record_event(
+        actor,
+        AuditAction.PROFILE_CREATED,
+        profile_id=profile.pk,
+    )
+    return profile
+
+
+@transaction.atomic
+def delete_profile(profile, *, actor):
+    """
+    Delete *profile* (the root record).
+
+    - Cascades to Demographics, WellnessPreferences, and EmergencyContacts
+      because those models use on_delete=CASCADE.
+    - Does NOT cascade to audit_events: AuditEvent.profile_id is a plain
+      BigIntegerField (no FK), so history is preserved with the original pk.
+    - The user account is NOT deleted.
+    - Emits a PROFILE_DELETED audit event BEFORE the profile row is removed
+      so that the audit event transaction includes the profile_id.
+    - After deletion the same account may create a new profile.
+    """
+    profile_id = profile.pk
+    # Record the deletion event first (inside the same transaction).
+    record_event(
+        actor,
+        AuditAction.PROFILE_DELETED,
+        profile_id=profile_id,
+    )
+    # Delete the root record; CASCADE handles Demographics, WellnessPreferences,
+    # and EmergencyContacts.  Audit events are NOT affected (no FK).
+    HealthProfile.objects.filter(pk=profile_id).delete()
 
 
 def _section_values(section):
@@ -76,6 +127,22 @@ def _lock_profile(profile):
     return HealthProfile.objects.select_for_update().get(pk=profile.pk)
 
 
+def _assert_profile_is_editable(locked_profile):
+    """
+    Service-level guard: re-read the editability rule on the freshly-locked
+    profile row.  This closes the race window between the permission check
+    (which runs before the lock) and the actual mutation.
+
+    Must be called while holding the SELECT FOR UPDATE lock on the row.
+    Raises ValidationError (403) if the profile is inactive.
+    """
+    if locked_profile.status != ProfileStatus.ACTIVE:
+        raise ValidationError(
+            {"detail": "This profile has been deactivated."},
+            code="inactive_profile",
+        )
+
+
 def _changed_names(instance, values):
     return [field for field, value in values.items() if getattr(instance, field) != value]
 
@@ -101,8 +168,10 @@ def _reject_duplicate_phone(contacts, phone):
 
 
 def _save_section(model, section_name, profile, values, *, actor, action):
-    _lock_profile(profile)
-    section = model.objects.get(profile=profile)
+    locked = _lock_profile(profile)
+    # Re-check status on the freshly-locked row to close the permission/lock race.
+    _assert_profile_is_editable(locked)
+    section = model.objects.get(profile=locked)
     changed = _apply_changes(section, values)
     recalculate_completion(profile)
     if changed:
@@ -157,6 +226,8 @@ def reset_wellness(profile, *, actor):
 @transaction.atomic
 def create_contact(profile, values, *, actor):
     locked = _lock_profile(profile)
+    # Re-check status on the freshly-locked row to close the permission/lock race.
+    _assert_profile_is_editable(locked)
     existing = list(locked.emergency_contacts.all())
 
     if len(existing) >= MAX_EMERGENCY_CONTACTS:
@@ -188,6 +259,8 @@ def create_contact(profile, values, *, actor):
 @transaction.atomic
 def update_contact(profile, contact_id, values, *, actor):
     locked = _lock_profile(profile)
+    # Re-check status on the freshly-locked row to close the permission/lock race.
+    _assert_profile_is_editable(locked)
     contact = get_object_or_404(EmergencyContact, pk=contact_id, profile=locked)
     values = dict(values)
 
@@ -223,6 +296,8 @@ def update_contact(profile, contact_id, values, *, actor):
 @transaction.atomic
 def delete_contact(profile, contact_id, *, actor):
     locked = _lock_profile(profile)
+    # Re-check status on the freshly-locked row to close the permission/lock race.
+    _assert_profile_is_editable(locked)
     contact = get_object_or_404(EmergencyContact, pk=contact_id, profile=locked)
     was_primary = contact.is_primary
     contact.delete()
