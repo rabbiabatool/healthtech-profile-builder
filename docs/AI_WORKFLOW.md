@@ -255,3 +255,39 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Validation:
   - Test suite: `pytest backend/mlcore/tests/test_ml_supervised_workbench.py backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 78 passed (evidence recorded in `docs/evidence/week4/phase1-supervised-tests.txt`).
   - OpenAPI validation: `pytest backend/tests/test_api_docs.py`: 10 passed (100%).
+
+
+### E12: Week 4 Phase 2 – Unsupervised Learning: Behavioral Clustering & PCA 2D Projection (2026-11-02, branch `week4-phase2-unsupervised-clustering`)
+- Goal: Implement an unsupervised learning engine over non-sensitive appointment engagement features, evaluating K-Means and Agglomerative Clustering across $k \in [2, 6]$ via elbow method and silhouette scores, performing 2D PCA projection, profiling clusters in neutral non-clinical terms, providing method comparison and meaningful vs. misleading cluster analysis, and exposing an authenticated API endpoint.
+- Prompt (verbatim, secrets removed):
+  > Unsupervised learning: run K-Means and one alternative such as DBSCAN or Agglomerative Clustering on non-sensitive profile/engagement features; choose scaling and cluster count using silhouette score and/or elbow method. Perform PCA for 2D visualization; describe each discovered cluster in neutral, non-clinical terms, compare methods, and explain why clusters are exploratory rather than ground-truth categories. [...] Acceptance checks: Show two clustering algorithms, PCA plot, cluster quality analysis and an explanation of meaningful versus misleading clusters. [...] We will implement above task in 4 phases and in different branches , not commiting them to main branch and save evidence of tests and update AI documentation. Our flow for each phase will be: design or build, test and commit. Start phase 1 [...] continue and at end of each phase tell what work you have done in easy words
+- What the AI proposed:
+  - Feature Selection & Privacy Safeguards: Selected 7 operational engagement features (`lead_time_days`, `scheduled_hour`, `previous_appointments`, `previous_no_shows`, `attendance_ratio`, `distance_km`, `reminder_sent`). Strictly excluded all demographic traits (`age`, `gender`, `race`, `postcode`) and clinical diagnostic data.
+  - Preprocessing: Handled missing distance data with median imputation and normalized continuous variables via `StandardScaler`.
+  - Clustering Suite:
+    1. K-Means: Evaluated across $k \in [2, 6]$, measuring inertia (Elbow curve), silhouette scores, and Davies-Bouldin separation.
+    2. Agglomerative Clustering: Evaluated hierarchical Ward linkage across $k \in [2, 6]$, comparing silhouette scores and Davies-Bouldin separation.
+  - Method Comparison: Calculated Adjusted Rand Index (ARI = 0.4866), Normalized Mutual Information (NMI = 0.4776), and contingency cross-tabulation between K-Means and Agglomerative cluster assignments.
+  - 2D PCA Dimensionality Reduction: Fitted 2 principal components explaining 41.95% of total variance (PC1 = 23.51% driven by past volume and attendance; PC2 = 18.44% driven by lead time and travel distance).
+  - Neutral Non-Clinical Archetypes: Described clusters as exploratory operational patterns with tailored scheduling recommendations (`Long-Horizon Advance Planners`, `High-Volume Recurring Clinic Attendees`, `Traditional / Offline Communications Group`, `Emerging / Low-History Visitors`, `Regional Extended-Travel Attendees`).
+  - Ethical Analysis: Explicitly documented why clusters are exploratory logistical groupings and must never be interpreted as clinical diagnoses or used to deprioritize healthcare access.
+  - API & Artifacts: Added `GET /api/v1/ml/clusters` endpoint with member JWT authentication and OpenAPI docs. Saved `backend/ml_artifacts/clustering_results.json`, `docs/ml/CLUSTERING_ANALYSIS.md`, and static figures (`docs/ml/figures/clustering_elbow_silhouette.png`, `docs/ml/figures/clustering_pca_2d.png`).
+- Scope:
+  - Files created/modified:
+    - `backend/mlcore/config.py`
+    - `backend/mlcore/clustering.py` (new)
+    - `backend/predictions/views.py`
+    - `backend/predictions/urls.py`
+    - `backend/mlcore/tests/test_ml_clustering.py` (new)
+    - `backend/predictions/tests/test_clustering_api.py` (new)
+    - `docs/ml/CLUSTERING_ANALYSIS.md` (new)
+    - `docs/ml/figures/clustering_elbow_silhouette.png` (new)
+    - `docs/ml/figures/clustering_pca_2d.png` (new)
+    - `backend/ml_artifacts/clustering_results.json` (new)
+    - `docs/evidence/week4/phase2-clustering-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Strictly scoped to ML clustering module and `GET /api/v1/ml/clusters`. All existing supervised predictions, member profiles, and admin management remain isolated and regression-free.
+- Validation:
+  - Unit & API Test Suite: `pytest backend/mlcore/tests/test_ml_clustering.py backend/predictions/tests/test_clustering_api.py backend/predictions/tests/test_comparison_api.py backend/mlcore/tests/test_ml_supervised_workbench.py backend/tests/test_predictions_auth.py backend/tests/test_api_docs.py -v`: 36 passed in 152.14s (evidence captured in `docs/evidence/week4/phase2-clustering-tests.txt`).
+  - OpenAPI verification: `test_api_docs.py` passed 10/10 with valid schema generation.
+  - Security check: Anonymous access returns 401; admin access returns 403; standard member returns 200.

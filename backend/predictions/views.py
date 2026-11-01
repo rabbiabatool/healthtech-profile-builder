@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from accounts.authentication import CookieJWTAuthentication
 from accounts.permissions import IsStandardUser
 from mlcore import config, registry
+from mlcore.clustering import run_clustering_pipeline
 from mlcore.supervised_workbench import train_and_evaluate_all
 from predictions.serializers import PredictionInputSerializer
 
@@ -104,6 +105,44 @@ class SupervisedComparisonView(MemberMLBaseView):
 
         try:
             data = train_and_evaluate_all(run_tuning=False)
+            return Response(data)
+        except Exception as e:
+            return _unavailable(e)
+
+
+class ClusteringAnalysisView(MemberMLBaseView):
+    """GET /api/v1/ml/clusters: returns unsupervised behavioral clustering and PCA analysis.
+
+    Educational & Operational prototype on non-sensitive engagement features.
+    """
+
+    @extend_schema(
+        summary="Explore unsupervised appointment engagement clusters and PCA 2D projection",
+        description=(
+            "Returns comparative clustering metrics (K-Means vs Agglomerative Clustering across k in [2, 6]), "
+            "elbow method inertia, silhouette scores, Davies-Bouldin separation, Adjusted Rand Index (ARI), "
+            "2D PCA coordinates and component loadings, plus neutral non-clinical persona descriptions. "
+            "Exploratory operational archetypes only; never used for clinical diagnosis or care decisions."
+        ),
+        tags=[ML_TAG],
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="Unsupervised clustering analysis report."),
+            401: UNAUTHENTICATED,
+            403: FORBIDDEN,
+            503: UNAVAILABLE,
+        },
+    )
+    def get(self, request):
+        artifact_file = Path(config.ARTIFACT_DIR) / config.CLUSTERING_FILENAME
+        if artifact_file.exists():
+            try:
+                data = json.loads(artifact_file.read_text(encoding="utf-8"))
+                return Response(data)
+            except Exception as e:
+                return _unavailable(f"Failed to read clustering artifact: {e}")
+
+        try:
+            data = run_clustering_pipeline(sample_size=1000)
             return Response(data)
         except Exception as e:
             return _unavailable(e)
