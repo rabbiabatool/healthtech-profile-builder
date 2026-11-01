@@ -83,3 +83,4 @@ def test_admin_predictions_url_does_not_exist(admin_client):
     # No admin predictions endpoint exists in backend routing
     response = admin_client.get("/api/admin/predictions")
     assert response.status_code == 404
+
