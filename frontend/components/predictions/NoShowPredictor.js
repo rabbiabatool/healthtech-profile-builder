@@ -122,19 +122,20 @@ export default function NoShowPredictor({ mode = "member" }) {
   }
 
   function renderField(name) {
-    const schema = info?.schema ?? {};
+    const schema = info?.input_schema ?? {};
     const id = `ml-field-${name}`;
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
     const error = fieldErrors[name];
-    const hint = HINTS[name];
+    let hint = HINTS[name] ?? "";
     const describedBy = [error ? errorId : null, hint ? hintId : null]
       .filter(Boolean)
       .join(" ") || undefined;
 
     let control = null;
-    if (schema.ranges && name in schema.ranges) {
-      const [low, high] = schema.ranges[name];
+    if (schema.numeric_ranges && name in schema.numeric_ranges) {
+      const [low, high] = schema.numeric_ranges[name];
+      hint = `${hint} Allowed: ${low} to ${high}.`.trim();
       control = (
         <input
           id={id}
@@ -150,7 +151,7 @@ export default function NoShowPredictor({ mode = "member" }) {
           className={styles.input}
         />
       );
-    } else if (name in schema.categorical_values) {
+    } else if (schema.categorical_values && name in schema.categorical_values) {
       control = (
         <select
           id={id}
@@ -180,7 +181,9 @@ export default function NoShowPredictor({ mode = "member" }) {
       );
     }
 
-    const isCheckbox = !(schema.ranges && name in schema.ranges) && !(name in schema.categorical_values);
+    const isCheckbox =
+      !(schema.numeric_ranges && name in schema.numeric_ranges) &&
+      !(schema.categorical_values && name in schema.categorical_values);
 
     return (
       <div key={name} className={isCheckbox ? styles.checkRow : styles.field}>
