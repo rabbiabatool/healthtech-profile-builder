@@ -291,3 +291,41 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
   - Unit & API Test Suite: `pytest backend/mlcore/tests/test_ml_clustering.py backend/predictions/tests/test_clustering_api.py backend/predictions/tests/test_comparison_api.py backend/mlcore/tests/test_ml_supervised_workbench.py backend/tests/test_predictions_auth.py backend/tests/test_api_docs.py -v`: 36 passed in 152.14s (evidence captured in `docs/evidence/week4/phase2-clustering-tests.txt`).
   - OpenAPI verification: `test_api_docs.py` passed 10/10 with valid schema generation.
   - Security check: Anonymous access returns 401; admin access returns 403; standard member returns 200.
+
+### Entry 13: 2026-11-02 – Week 4 Phase 3: LLM Foundations – Grounded Policy RAG FAQ Assistant
+- Objective: Design and implement a safe, educational FAQ assistant over approved fictional clinic policies using Retrieval-Augmented Generation (RAG) with Gemini 1.5 Flash, structured JSON responses, adversarial injection defenses, out-of-scope refusals, medical disclaimers, and a 12-case evaluation harness.
+- Action:
+  - Fictional Policy Documents: Authored 4 non-sensitive, fictional clinic documents in `backend/rag/docs/` (`booking_policy.txt`, `cancellation_policy.txt`, `privacy_policy.txt`, `ai_disclaimer.txt`).
+  - RAG Retrieval Engine: Built `backend/rag/engine.py` with sliding window chunking (350 chars with 60 char overlap), TF-IDF vectorizer (ngram 1-2, 3000 features, sublinear tf), and cosine similarity retrieval without external vector DB dependencies.
+  - Multi-Layer Safety & Security:
+    - Pre-retrieval adversarial prompt injection detection (`_INJECTION_RE`) catching system-override attempts, jailbreak syntax, and instruction leak requests.
+    - Medical query detector (`_MEDICAL_RE`) enforcing strict medical disclaimers and refusal to diagnose or prescribe.
+    - System prompt grounding: Zero patient PII transmission, cited source passages, explicit "insufficient information" refusal for unsupported queries.
+    - In-process rate limiting (1 sec minimum interval), 30s timeout, token estimation, and mock fallback for deterministic testing without external API credentials.
+  - Endpoints & Schemas:
+    - Created `POST /api/v1/llm/faq/` for grounded Q&A with structured schema (`answer`, `citations`, `confidence`, `safety_flag`, `out_of_scope`, `approximate_input_tokens`, `approximate_output_tokens`, `model_used`, `latency_ms`).
+    - Created `GET /api/v1/llm/faq/evaluate/` returning the live 12-case evaluation matrix.
+    - Guarded with `MemberMLBaseView` (member-only JWT; admin and anonymous access strictly rejected).
+  - 12-Case Evaluation Suite: Authored `backend/rag/evaluation.py` covering 6 answerable queries, 2 ambiguous queries, 2 out-of-scope queries, 1 medical query, and 1 adversarial injection test. Achieved 12/12 (100%) pass rate.
+  - OpenAPI & Schemas: Full `drf-spectacular` schema integration; validated against all OpenAPI constraints.
+- Scope:
+  - Files created/modified:
+    - `backend/rag/__init__.py` (new)
+    - `backend/rag/docs/booking_policy.txt` (new)
+    - `backend/rag/docs/cancellation_policy.txt` (new)
+    - `backend/rag/docs/privacy_policy.txt` (new)
+    - `backend/rag/docs/ai_disclaimer.txt` (new)
+    - `backend/rag/engine.py` (new)
+    - `backend/rag/evaluation.py` (new)
+    - `backend/rag/views.py` (new)
+    - `backend/rag/urls.py` (new)
+    - `backend/rag/tests.py` (new)
+    - `backend/config/urls.py`
+    - `backend/config/settings.py`
+    - `docs/ml/LLM_EVALUATION.md` (new)
+    - `docs/evidence/week4/phase3-llm-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to `backend/rag/` application and `/api/v1/llm/` routes. Existing ML predictions and member profiles remain untouched.
+- Validation:
+  - Unit & API tests: 27/27 passed (`backend/rag/tests.py` and `backend/tests/test_api_docs.py`).
+  - Evaluation Harness: 12/12 test cases passed; report generated in `docs/ml/LLM_EVALUATION.md`.

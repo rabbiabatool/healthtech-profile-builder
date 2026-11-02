@@ -89,3 +89,4 @@ def test_cluster_profiles_and_disclaimer(engagement_data):
         assert p["operational_recommendation"]
 
     assert "EXPLORATORY OPERATIONAL ARCHETYPES" in clustering.NON_CLINICAL_DISCLAIMER
+

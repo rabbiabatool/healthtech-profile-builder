@@ -1,0 +1,39 @@
+GREENLEAF CLINIC – EDUCATIONAL AI ASSISTANT DISCLAIMER (Version 1.0, Effective 2026-01-01)
+FICTIONAL DOCUMENT – EDUCATIONAL USE ONLY
+
+1. PURPOSE OF THIS TOOL
+   The Greenleaf Clinic AI FAQ Assistant is a prototype educational tool designed to help
+   members find information about clinic booking, cancellation, privacy, and general
+   administrative policies. It is built as a demonstration of Retrieval-Augmented Generation
+   (RAG) technology using only the fictional Greenleaf Clinic policy documents.
+
+2. WHAT THIS TOOL CAN DO
+   The assistant can answer questions about:
+   - How to book, cancel, or reschedule appointments.
+   - What appointment types are available and how long they take.
+   - Confirmation and reminder processes.
+   - Data privacy rights and how the clinic uses member information.
+   - Fee structures and cancellation notice requirements.
+
+3. WHAT THIS TOOL CANNOT DO
+   The assistant CANNOT and WILL NOT:
+   - Provide medical diagnoses, treatment recommendations, or clinical advice of any kind.
+   - Access individual member health records, appointment history, or personal data.
+   - Guarantee the accuracy of information outside the approved policy documents.
+   - Replace a consultation with a qualified healthcare professional.
+   - Process bookings, cancellations, or any transactional requests.
+
+4. LIMITATIONS AND SCOPE
+   All responses are generated from pre-approved fictional policy documents only. If a question
+   falls outside the scope of approved documents, the assistant will explicitly state:
+   "I don't have enough information in the approved clinic policies to answer that question."
+   The assistant will not speculate, invent, or hallucinate information beyond its approved sources.
+
+5. MEDICAL ADVICE DISCLAIMER
+   NO RESPONSE FROM THIS TOOL CONSTITUTES MEDICAL ADVICE. If you have a health concern,
+   please contact your healthcare provider or call emergency services if urgent.
+
+6. CONTACT FOR CORRECTIONS
+   If you believe an AI response contains an error or is misleading, please report it to
+   feedback@greenleafclinic.example. The clinic reviews feedback weekly.
+

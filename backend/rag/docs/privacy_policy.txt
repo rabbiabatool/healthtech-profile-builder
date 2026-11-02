@@ -1,0 +1,46 @@
+GREENLEAF CLINIC – MEMBER PRIVACY AND DATA POLICY (Version 3.0, Effective 2026-01-01)
+FICTIONAL DOCUMENT – EDUCATIONAL USE ONLY
+
+1. DATA WE COLLECT
+   Greenleaf Clinic collects the following information from members:
+   - Registration data: name, date of birth, contact email, phone number, and address.
+   - Appointment records: dates, types, attendance history, and scheduling metadata.
+   - Optional engagement data: reminder preferences and communication channel opt-ins.
+   The clinic does not collect race, ethnicity, religion, disability status, or financial
+   account details as part of the member profile.
+
+2. HOW WE USE YOUR DATA
+   Member data is used solely for:
+   (a) Scheduling and managing appointments.
+   (b) Sending appointment confirmations and reminders (if opted in).
+   (c) Internal operational analytics to improve clinic scheduling efficiency.
+   (d) Regulatory compliance and audit record-keeping.
+   Member data is NEVER sold, rented, or shared with third-party marketing organisations.
+
+3. DATA RETENTION
+   Appointment and engagement records are retained for 7 years in line with health
+   administration regulations. After the retention period, records are securely deleted.
+   Members may request deletion of non-mandatory data (e.g. reminder preferences) at any time.
+
+4. MEMBER DATA RIGHTS
+   Members have the right to:
+   - Access a copy of their stored data (request via the Member Portal or in writing).
+   - Correct inaccurate data within 14 business days of a written request.
+   - Withdraw consent for optional data processing (reminders, communications) at any time.
+   - Lodge a complaint with the relevant Data Protection Authority.
+
+5. SECURITY MEASURES
+   All member data is stored encrypted at rest and in transit. Access is restricted to
+   clinic staff with a documented operational need. The clinic undergoes annual security
+   audits and maintains ISO-27001-equivalent controls.
+
+6. EDUCATIONAL AI DISCLAIMER
+   The Member Portal includes an AI-assisted FAQ tool for educational purposes. This tool
+   answers questions based only on approved clinic policy documents. It does NOT have access
+   to individual member health records, diagnosis data, or personal information. All AI
+   responses are generated from fictional policy text and must not be treated as medical,
+   legal, or financial advice.
+
+7. CONTACT
+   Data queries may be directed to privacy@greenleafclinic.example.
+

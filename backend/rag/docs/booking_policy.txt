@@ -1,0 +1,47 @@
+GREENLEAF CLINIC – APPOINTMENT BOOKING POLICY (Version 2.1, Effective 2026-01-01)
+FICTIONAL DOCUMENT – EDUCATIONAL USE ONLY
+
+1. BOOKING CHANNELS
+   Appointments may be booked online through the Greenleaf Clinic Member Portal, by calling the
+   clinic reception on business days (Monday–Friday, 08:00–17:00), or in person at the front desk.
+   Walk-in appointments are accepted subject to availability and are not guaranteed.
+
+2. ADVANCE BOOKING WINDOW
+   Appointments may be booked up to 180 days in advance. Same-day bookings are available for
+   urgent non-emergency needs if slots remain. A minimum of 2 hours notice is required for
+   same-day bookings made by phone or online.
+
+3. APPOINTMENT TYPES
+   The clinic offers the following appointment categories:
+   - CHECKUP: Routine general health screening (30 minutes).
+   - FOLLOW_UP: Continuity visit following a previous consultation (20 minutes).
+   - VACCINATION: Immunisation administration (15 minutes).
+   - LAB_TEST: Blood draw or specimen collection (10–20 minutes, fasting may be required).
+   - SPECIALIST: Referral-required specialist consultation (45 minutes).
+
+4. CONFIRMATION AND REMINDERS
+   A booking confirmation is sent by email within 15 minutes of scheduling. SMS reminders are
+   sent to members who have opted in: once at 48 hours before the appointment, and once again
+   2 hours before. Members may opt out of reminders at any time through the Member Portal
+   under Settings → Notifications.
+
+5. IDENTIFICATION REQUIREMENTS
+   Members must present their Greenleaf Clinic membership card or government-issued photo ID
+   at check-in. Failure to present valid ID may result in the appointment being rescheduled.
+
+6. LATE ARRIVAL POLICY
+   Members arriving more than 10 minutes late for a scheduled appointment may be asked to
+   reschedule. The clinic will make reasonable efforts to accommodate late arrivals if clinical
+   capacity permits, but this cannot be guaranteed.
+
+7. APPOINTMENT FEES AND BILLING
+   Standard membership covers CHECKUP and FOLLOW_UP appointments at no additional charge.
+   VACCINATION, LAB_TEST, and SPECIALIST appointments may incur additional fees depending on
+   the member's plan tier. A full schedule of fees is available at reception and on the Member
+   Portal under Billing.
+
+8. MINORS AND DEPENDANTS
+   Members may book appointments for registered dependants under 18 years of age. A parent or
+   legal guardian must accompany dependants under 16 at all appointments. Dependant profiles
+   must be added to the member account before booking.
+

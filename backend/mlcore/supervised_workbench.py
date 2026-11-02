@@ -315,3 +315,4 @@ def _write_markdown_report(payload, path):
     ])
 
     Path(path).write_text("\n".join(lines), encoding="utf-8")
+

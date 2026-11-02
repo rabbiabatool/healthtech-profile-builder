@@ -35,3 +35,4 @@ def test_comparison_api_accepts_member():
     assert "tuning" in data
     assert "dataset" in data
     assert len(data["comparison_table"]) >= 4
+
