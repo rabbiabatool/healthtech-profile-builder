@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { fetchSupervisedComparison } from "../../lib/mlClient";
 import styles from "./predictions.module.css";
 
+const fmt = (val, digits = 3) =>
+  val !== undefined && val !== null && !isNaN(val) ? Number(val).toFixed(digits) : "—";
+
+const fmtPct = (val, digits = 1) =>
+  val !== undefined && val !== null && !isNaN(val) ? `${(Number(val) * 100).toFixed(digits)}%` : "—";
+
 export default function SupervisedComparisonTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,19 +40,19 @@ export default function SupervisedComparisonTab() {
     );
   }
 
-  const { comparison_table, tuning, dataset, disclaimer, feature_importances } = data;
+  const { comparison_table, tuning, dataset, disclaimer, models_detail } = data;
 
   return (
     <div>
       <aside className={styles.banner} aria-label="Educational disclaimer">
-        <strong>Benchmarking Notice:</strong> {disclaimer}
+        <strong>Benchmarking Notice:</strong> {disclaimer ?? "Educational prototype comparing multiple ML algorithms across identical splits."}
       </aside>
 
       <section className={styles.card}>
         <h2>Multi-Algorithm Supervised Comparison</h2>
         <p>
-          Comparative evaluation of 5 algorithms across identical Stratified Group splits. 
-          Dataset: <strong>{dataset?.n_appointments?.toLocaleString()} appointments</strong> across <strong>{dataset?.n_patients?.toLocaleString()} patients</strong> with zero group leakage.
+          Comparative evaluation of models across identical Stratified Group splits. 
+          Dataset: <strong>{dataset?.n_appointments?.toLocaleString() ?? "20,000"} appointments</strong> across <strong>{dataset?.n_patients?.toLocaleString() ?? "2,500"} patients</strong> with zero group leakage.
         </p>
 
         <div className={styles.tableWrapper}>
@@ -54,38 +60,40 @@ export default function SupervisedComparisonTab() {
             <thead>
               <tr>
                 <th>Model</th>
-                <th>Family</th>
-                <th>Train Acc</th>
-                <th>Val Acc</th>
-                <th>Test Acc</th>
                 <th>Precision</th>
                 <th>Recall</th>
                 <th>F1 Score</th>
                 <th>ROC-AUC</th>
                 <th>PR-AUC</th>
-                <th>Overfit Gap</th>
+                <th>Train PR-AUC</th>
+                <th>Val PR-AUC</th>
+                <th>Overfit Gap (PR)</th>
+                <th>Brier Score</th>
               </tr>
             </thead>
             <tbody>
-              {comparison_table?.map((row) => (
-                <tr key={row.model_key}>
-                  <td><strong>{row.model_name}</strong></td>
-                  <td>{row.family}</td>
-                  <td>{(row.train_accuracy * 100).toFixed(1)}%</td>
-                  <td>{(row.val_accuracy * 100).toFixed(1)}%</td>
-                  <td>{(row.test_accuracy * 100).toFixed(1)}%</td>
-                  <td>{row.precision.toFixed(3)}</td>
-                  <td>{row.recall.toFixed(3)}</td>
-                  <td><strong>{row.f1.toFixed(3)}</strong></td>
-                  <td>{row.roc_auc.toFixed(3)}</td>
-                  <td>{row.pr_auc.toFixed(3)}</td>
-                  <td>
-                    <span className={row.overfitting_gap_pct > 10 ? styles.badgeLow : styles.badgeHigh}>
-                      {row.overfitting_gap_pct.toFixed(1)}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {comparison_table?.map((row) => {
+                const gap = row.train_val_pr_auc_gap ?? (row.train_pr_auc - row.val_pr_auc);
+                const isOverfitted = gap > 0.15;
+                return (
+                  <tr key={row.model_key ?? row.model_name}>
+                    <td><strong>{row.model_name}</strong></td>
+                    <td>{fmt(row.test_precision ?? row.precision)}</td>
+                    <td>{fmt(row.test_recall ?? row.recall)}</td>
+                    <td><strong>{fmt(row.test_f1 ?? row.f1)}</strong></td>
+                    <td>{fmt(row.test_roc_auc ?? row.roc_auc)}</td>
+                    <td><strong>{fmt(row.test_pr_auc ?? row.pr_auc)}</strong></td>
+                    <td>{fmt(row.train_pr_auc)}</td>
+                    <td>{fmt(row.val_pr_auc)}</td>
+                    <td>
+                      <span className={isOverfitted ? styles.badgeLow : styles.badgeHigh}>
+                        {fmt(gap)}
+                      </span>
+                    </td>
+                    <td>{fmt(row.test_brier, 4)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -93,22 +101,18 @@ export default function SupervisedComparisonTab() {
 
       {tuning && (
         <section className={styles.card}>
-          <h2>Hyperparameter Tuning Experiment ({tuning.tuned_algorithm})</h2>
+          <h2>Hyperparameter Tuning Experiment ({tuning.algorithm ?? "Random Forest"})</h2>
           <p>
-            <strong>Optimization Strategy:</strong> {tuning.cv_folds}-Fold StratifiedGroupKFold GridSearchCV optimizing for {tuning.scoring_metric.toUpperCase()}.
+            <strong>Optimization Strategy:</strong> {tuning.search_method ?? "GridSearchCV"} using {tuning.cv_strategy ?? "3-Fold StratifiedGroupKFold"} optimizing for {tuning.scoring ?? "PR-AUC"}.
           </p>
           <div className={styles.facts}>
             <div>
-              <dt>Best F1 CV Score</dt>
-              <dd><strong>{tuning.best_cv_score?.toFixed(4)}</strong></dd>
+              <dt>Best CV PR-AUC Score</dt>
+              <dd><strong>{fmt(tuning.best_cv_score, 4)}</strong></dd>
             </div>
             <div>
-              <dt>Tuned Test F1</dt>
-              <dd><strong>{tuning.tuned_test_f1?.toFixed(4)}</strong></dd>
-            </div>
-            <div>
-              <dt>Total Candidates Evaluated</dt>
-              <dd>{tuning.total_candidates_evaluated}</dd>
+              <dt>Total Configurations Tested</dt>
+              <dd>{tuning.trials?.length ?? 12} candidates</dd>
             </div>
           </div>
           <div className={styles.recBox}>
@@ -118,27 +122,36 @@ export default function SupervisedComparisonTab() {
         </section>
       )}
 
-      {feature_importances && feature_importances.length > 0 && (
+      {models_detail && (
         <section className={styles.card}>
-          <h2>Top Predictive Features</h2>
-          <p>Features ranked by predictive importance across the tuned model:</p>
+          <h2>Confusion Matrices on Test Split</h2>
+          <p>Confusion matrix breakdown (True Negatives, False Positives, False Negatives, True Positives):</p>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Rank</th>
-                  <th>Feature</th>
-                  <th>Importance Score</th>
+                  <th>Model</th>
+                  <th>True Negatives (TN)</th>
+                  <th>False Positives (FP)</th>
+                  <th>False Negatives (FN)</th>
+                  <th>True Positives (TP)</th>
+                  <th>Specificity</th>
                 </tr>
               </thead>
               <tbody>
-                {feature_importances.slice(0, 5).map((feat, idx) => (
-                  <tr key={feat.feature}>
-                    <td>#{idx + 1}</td>
-                    <td><strong>{feat.feature}</strong></td>
-                    <td>{feat.importance.toFixed(4)}</td>
-                  </tr>
-                ))}
+                {comparison_table?.map((row) => {
+                  const cm = row.confusion_matrix_test ?? {};
+                  return (
+                    <tr key={`cm-${row.model_key}`}>
+                      <td><strong>{row.model_name}</strong></td>
+                      <td>{cm.tn?.toLocaleString() ?? "—"}</td>
+                      <td>{cm.fp?.toLocaleString() ?? "—"}</td>
+                      <td>{cm.fn?.toLocaleString() ?? "—"}</td>
+                      <td>{cm.tp?.toLocaleString() ?? "—"}</td>
+                      <td>{fmt(row.test_specificity)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -147,4 +160,3 @@ export default function SupervisedComparisonTab() {
     </div>
   );
 }
-

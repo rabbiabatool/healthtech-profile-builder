@@ -188,20 +188,25 @@ export default function PolicyFaqTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {matrixData.results?.map((item) => (
-                        <tr key={item.id}>
-                          <td><strong>{item.id}</strong></td>
-                          <td>{item.category}</td>
-                          <td>{item.question}</td>
-                          <td>{item.response?.confidence}</td>
-                          <td>{item.response?.safety_flag ? "⚠️ Yes" : "—"}</td>
-                          <td>
-                            <span className={item.passed ? styles.badgeHigh : styles.badgeLow}>
-                              {item.passed ? "PASS" : "FAIL"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {matrixData.results?.map((item) => {
+                        const isPass = item.pass ?? item.passed ?? false;
+                        const confidence = item.actual_confidence ?? item.response?.confidence ?? "MEDIUM";
+                        const isFlagged = item.actual_safety_flag || item.response?.safety_flag || false;
+                        return (
+                          <tr key={item.id}>
+                            <td><strong>{item.id}</strong></td>
+                            <td>{item.category}</td>
+                            <td>{item.question}</td>
+                            <td>{confidence}</td>
+                            <td>{isFlagged ? "⚠️ Yes" : "—"}</td>
+                            <td>
+                              <span className={isPass ? styles.badgeHigh : styles.badgeLow}>
+                                {isPass ? "PASS" : "FAIL"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

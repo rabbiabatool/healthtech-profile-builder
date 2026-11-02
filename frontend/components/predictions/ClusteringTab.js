@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { fetchClusteringAnalysis } from "../../lib/mlClient";
 import styles from "./predictions.module.css";
 
+const fmt = (val, digits = 4) =>
+  val !== undefined && val !== null && !isNaN(val) ? Number(val).toFixed(digits) : "—";
+
+const fmtPct = (val, digits = 1) =>
+  val !== undefined && val !== null && !isNaN(val) ? `${(Number(val) * 100).toFixed(digits)}%` : "—";
+
 export default function ClusteringTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,71 +41,75 @@ export default function ClusteringTab() {
   }
 
   const {
-    kmeans_optimal_k,
-    silhouette_score,
-    davies_bouldin_index,
-    method_comparison,
-    pca_2d_summary,
+    optimal_k,
+    k_evaluations,
+    methods_comparison,
+    pca_summary,
     cluster_profiles,
     disclaimer,
+    features_used,
+    dataset_size,
   } = data;
+
+  const optimalEval = k_evaluations?.find((e) => e.k === optimal_k) ?? k_evaluations?.[0] ?? {};
 
   return (
     <div>
       <aside className={styles.banner} aria-label="Educational disclaimer">
-        <strong>Exploratory Archetype Notice:</strong> {disclaimer}
+        <strong>Exploratory Archetype Notice:</strong> {disclaimer ?? "Exploratory operational clustering based on non-sensitive engagement data."}
       </aside>
 
       <section className={styles.card}>
         <h2>Clustering Quality & Algorithm Comparison</h2>
         <p>
-          Evaluated non-sensitive patient engagement metrics using <strong>K-Means</strong> and <strong>Agglomerative Hierarchical Clustering</strong>.
+          Evaluated {dataset_size?.toLocaleString() ?? "20,000"} patient engagement records across {features_used?.length ?? 6} non-sensitive features using <strong>K-Means</strong> and <strong>Agglomerative Hierarchical Clustering</strong>.
         </p>
         <div className={styles.facts}>
           <div>
             <dt>Optimal Clusters (k)</dt>
-            <dd><strong>{kmeans_optimal_k}</strong></dd>
+            <dd><strong>k = {optimal_k ?? 6}</strong></dd>
           </div>
           <div>
             <dt>K-Means Silhouette Score</dt>
-            <dd><strong>{silhouette_score?.toFixed(4)}</strong></dd>
+            <dd><strong>{fmt(optimalEval.silhouette)}</strong></dd>
           </div>
           <div>
             <dt>Davies-Bouldin Index</dt>
-            <dd>{davies_bouldin_index?.toFixed(4)} (lower is better)</dd>
-          </div>
-          <div>
-            <dt>Agglomerative Silhouette</dt>
-            <dd>{method_comparison?.agglomerative_silhouette?.toFixed(4)}</dd>
+            <dd>{fmt(optimalEval.davies_bouldin)} (lower is better)</dd>
           </div>
           <div>
             <dt>Adjusted Rand Index (ARI)</dt>
-            <dd>{method_comparison?.adjusted_rand_index?.toFixed(4)}</dd>
+            <dd>{fmt(methods_comparison?.adjusted_rand_index)}</dd>
           </div>
           <div>
             <dt>Normalized Mutual Info (NMI)</dt>
-            <dd>{method_comparison?.normalized_mutual_info?.toFixed(4)}</dd>
+            <dd>{fmt(methods_comparison?.normalized_mutual_info)}</dd>
           </div>
         </div>
+        {methods_comparison?.method_comparison_summary && (
+          <p className={styles.hint} style={{ marginTop: "0.75rem" }}>
+            {methods_comparison.method_comparison_summary}
+          </p>
+        )}
       </section>
 
-      {pca_2d_summary && (
+      {pca_summary && (
         <section className={styles.card}>
           <h2>2D PCA Dimensionality Reduction</h2>
           <p>
-            Projected 6 standardized engagement features onto 2 orthogonal principal components, capturing{" "}
-            <strong>{pca_2d_summary.total_explained_variance_pct}%</strong> of total variance:
+            Projected engagement features onto 2 orthogonal principal components, capturing{" "}
+            <strong>{fmtPct(pca_summary.total_explained_variance)}</strong> of total variance:
           </p>
           <div className={styles.facts}>
             <div>
               <dt>PC1 Explained Variance</dt>
-              <dd><strong>{pca_2d_summary.explained_variance_ratio_pc1_pct}%</strong></dd>
-              <dd className={styles.hint}>Dominant driver: {pca_2d_summary.top_features_pc1?.join(", ")}</dd>
+              <dd><strong>{fmtPct(pca_summary.explained_variance_ratio?.[0])}</strong></dd>
+              <dd className={styles.hint}>{pca_summary.pc_interpretations?.PC1 ?? "History volume and consistency"}</dd>
             </div>
             <div>
               <dt>PC2 Explained Variance</dt>
-              <dd><strong>{pca_2d_summary.explained_variance_ratio_pc2_pct}%</strong></dd>
-              <dd className={styles.hint}>Dominant driver: {pca_2d_summary.top_features_pc2?.join(", ")}</dd>
+              <dd><strong>{fmtPct(pca_summary.explained_variance_ratio?.[1])}</strong></dd>
+              <dd className={styles.hint}>{pca_summary.pc_interpretations?.PC2 ?? "Lead time days and travel distance"}</dd>
             </div>
           </div>
         </section>
@@ -115,18 +125,22 @@ export default function ClusteringTab() {
             <article key={profile.cluster_id} className={styles.clusterCard}>
               <div>
                 <div className={styles.clusterHeader}>
-                  <h3 className={styles.clusterTitle}>{profile.persona_name}</h3>
+                  <h3 className={styles.clusterTitle}>{profile.name ?? `Cluster ${profile.cluster_id}`}</h3>
                   <span className={styles.clusterSize}>
-                    {profile.patient_count?.toLocaleString()} patients ({profile.percentage?.toFixed(1)}%)
+                    {profile.size?.toLocaleString() ?? "—"} patients ({fmt(profile.percentage, 1)}%)
                   </span>
                 </div>
                 <p className={styles.hint}>{profile.description}</p>
-                <strong>Key Characteristic Traits:</strong>
-                <ul className={styles.traitList}>
-                  {profile.characteristic_traits?.map((trait, idx) => (
-                    <li key={idx}>{trait}</li>
-                  ))}
-                </ul>
+                {profile.traits && profile.traits.length > 0 && (
+                  <>
+                    <strong>Key Characteristic Traits:</strong>
+                    <ul className={styles.traitList}>
+                      {profile.traits.map((trait, idx) => (
+                        <li key={idx}>{trait}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
               <div className={styles.recBox}>
                 <strong>Operational Strategy:</strong>
@@ -139,4 +153,3 @@ export default function ClusteringTab() {
     </div>
   );
 }
-
