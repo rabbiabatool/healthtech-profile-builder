@@ -71,11 +71,15 @@ export default function ClusteringTab() {
           </div>
           <div>
             <dt>K-Means Silhouette Score</dt>
-            <dd><strong>{fmt(optimalEval.silhouette)}</strong></dd>
+            <dd><strong>{fmt(optimalEval.kmeans_silhouette ?? optimalEval.silhouette)}</strong></dd>
           </div>
           <div>
             <dt>Davies-Bouldin Index</dt>
-            <dd>{fmt(optimalEval.davies_bouldin)} (lower is better)</dd>
+            <dd>{fmt(optimalEval.kmeans_davies_bouldin ?? optimalEval.davies_bouldin)} (lower is better)</dd>
+          </div>
+          <div>
+            <dt>Agglomerative Silhouette</dt>
+            <dd>{fmt(optimalEval.agglomerative_silhouette ?? methods_comparison?.agglomerative_silhouette)}</dd>
           </div>
           <div>
             <dt>Adjusted Rand Index (ARI)</dt>
