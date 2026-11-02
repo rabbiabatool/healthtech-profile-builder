@@ -38,7 +38,7 @@ def build_baseline_preprocessor():
             ("numeric", numeric, schema.NUMERIC_FEATURES),
             (
                 "categorical",
-                OneHotEncoder(categories=_category_lists(), handle_unknown="ignore", sparse_output=False),
+                OneHotEncoder(categories=_category_lists(), handle_unknown="error", sparse_output=False),
                 schema.CATEGORICAL_FEATURES,
             ),
             ("boolean", "passthrough", schema.BOOLEAN_FEATURES),
@@ -78,7 +78,7 @@ def build_tree_preprocessor():
             ("numeric", "passthrough", schema.NUMERIC_FEATURES),
             (
                 "categorical",
-                OrdinalEncoder(categories=_category_lists(), handle_unknown="use_encoded_value", unknown_value=-1),
+                OrdinalEncoder(categories=_category_lists(), handle_unknown="error"),
                 schema.CATEGORICAL_FEATURES,
             ),
             ("boolean", "passthrough", schema.BOOLEAN_FEATURES),

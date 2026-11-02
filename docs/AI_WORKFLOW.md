@@ -329,3 +329,31 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Validation:
   - Unit & API tests: 27/27 passed (`backend/rag/tests.py` and `backend/tests/test_api_docs.py`).
   - Evaluation Harness: 12/12 test cases passed; report generated in `docs/ml/LLM_EVALUATION.md`.
+
+### Entry 14: 2026-11-02 – Week 4 Phase 4: Multi-Tab Workbench UI & Full Regression Verification
+- Objective: Complete the Week 4 user experience by implementing an interactive, multi-tabbed Machine Learning & AI Workbench in Next.js, integrating all supervised, unsupervised, and LLM services with strict member authentication guards, accessible styling, and zero regressions across the codebase.
+- Action:
+  - Frontend Client Extensions: Added `fetchSupervisedComparison()`, `fetchClusteringAnalysis()`, `askFaq(question)`, and `fetchFaqEvaluation()` to `frontend/lib/mlClient.js` with automated CSRF handling.
+  - Multi-Tab Workbench UI:
+    - Tab 1: **Single Prediction** (Week 3 interactive model with form presets, instant probability calculations, risk bands, and disclaimers).
+    - Tab 2: **Supervised Benchmark** (`SupervisedComparisonTab.js` displaying 5-algorithm comparison table, train/val/test metrics, overfitting gaps, 3-fold StratifiedGroupKFold GridSearchCV tuning parameters, and feature importances).
+    - Tab 3: **Patient Clustering (PCA)** (`ClusteringTab.js` displaying K-Means vs Agglomerative metrics, 2D PCA explained variance breakdown, and 6 neutral exploratory persona cards with operational recommendations).
+    - Tab 4: **Policy FAQ Assistant (LLM)** (`PolicyFaqTab.js` featuring interactive Q&A assistant with quick prompt buttons, source citations, safety shield indicators, approximate token usage, and collapsible 12-case evaluation benchmark matrix).
+  - Security & Authentication Guard: Preserved member-only access across all tabs (anonymous redirected to sign in; admin requests strictly denied with 403 Forbidden).
+  - Production Build: Executed `npm run build` in Next.js Turbopack with 0 errors across all 11 routes.
+  - Full Regression Testing: Verified full test suite (`backend/mlcore/tests/`, `backend/predictions/tests/`, `backend/rag/tests.py`, `backend/tests/test_predictions_auth.py`, `backend/tests/test_api_docs.py`). Re-enforced strict schema category validation (`handle_unknown="error"`).
+- Scope:
+  - Files created/modified:
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `frontend/components/predictions/SupervisedComparisonTab.js` (new)
+    - `frontend/components/predictions/ClusteringTab.js` (new)
+    - `frontend/components/predictions/PolicyFaqTab.js` (new)
+    - `frontend/components/predictions/predictions.module.css`
+    - `backend/mlcore/pipeline.py`
+    - `docs/evidence/week4/phase4-regression-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Frontend workbench component updates and ML preprocessor categorical validation guard. All existing accounts, member profiles, and admin capabilities remain regression-free.
+- Validation:
+  - Frontend build: `npm run build` passed with 0 errors across 11 routes.
+  - Full regression test suite: 186/186 passed in 101.51s (evidence documented in `docs/evidence/week4/phase4-regression-tests.txt`).

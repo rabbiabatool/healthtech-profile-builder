@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { fetchModelInfo, requestPrediction } from "../../lib/mlClient";
 import AboutModel from "./AboutModel";
 import ResultCard from "./ResultCard";
+import SupervisedComparisonTab from "./SupervisedComparisonTab";
+import ClusteringTab from "./ClusteringTab";
+import PolicyFaqTab from "./PolicyFaqTab";
 import styles from "./predictions.module.css";
 import {
   DEFAULT_DISCLAIMER,
@@ -21,12 +24,13 @@ import {
 const LOGIN_PATH = "/login";
 
 const COPY = {
-  title: "No-show estimate (educational)",
+  title: "Machine Learning & AI Workbench (Educational)",
   intro:
-    "See how an educational model estimates the chance that a fictional appointment is missed. Nothing you enter is saved, and your own profile is never used.",
+    "Explore educational machine learning models: interactive no-show estimation, multi-algorithm supervised benchmarking, unsupervised patient clustering with 2D PCA, and a grounded clinic policy FAQ assistant.",
 };
 
 export default function NoShowPredictor({ mode = "member" }) {
+  const [activeTab, setActiveTab] = useState("predict");
   const [state, setState] = useState("loading");
   const [info, setInfo] = useState(null);
   const [values, setValues] = useState(PRESETS[0].values);
@@ -99,42 +103,38 @@ export default function NoShowPredictor({ mode = "member" }) {
       const { status, data } = await requestPrediction(buildPayload(values, info));
       if (status === 200) {
         setResult(data);
+      } else if (status === 400 && data) {
+        const { fieldErrors: fe, general: g } = splitErrors(data);
+        setFieldErrors(fe);
+        setGeneral(g);
+      } else if (status === 401) {
+        setState("signin");
+      } else if (status === 403) {
+        setState("forbidden");
       } else {
-        setResult(null);
-        if (status === 400) {
-          const parsed = splitErrors(data, FIELD_ORDER);
-          setFieldErrors(parsed.fieldErrors);
-          setGeneral(parsed.general.length ? parsed.general : ["Please fix the fields marked below."]);
-        } else if (status === 401) {
-          setState("signin");
-        } else if (status === 403) {
-          setGeneral(["Access denied: member session or security token required."]);
-        } else if (status === 503) {
-          setGeneral([data?.detail ?? "The model is not available right now."]);
-        } else {
-          setGeneral(["Something went wrong. Please try again."]);
-        }
+        setGeneral(["The estimate could not be calculated. Please check your connection and retry."]);
       }
     } catch {
-      setGeneral(["Could not reach the server."]);
+      setGeneral(["A network problem occurred. Please check your connection and retry."]);
     } finally {
       setBusy(false);
     }
   }
 
   function renderField(name) {
-    const id = `member-${name}`;
+    const schema = info?.schema ?? {};
+    const id = `ml-field-${name}`;
     const hintId = `${id}-hint`;
     const errorId = `${id}-error`;
     const error = fieldErrors[name];
-    const schema = info.input_schema;
-    const describedBy = error ? `${hintId} ${errorId}` : hintId;
-    let hint = HINTS[name] ?? "";
-    let control;
+    const hint = HINTS[name];
+    const describedBy = [error ? errorId : null, hint ? hintId : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
-    if (name in schema.numeric_ranges) {
-      const [low, high] = schema.numeric_ranges[name];
-      hint = `${hint} Allowed: ${low} to ${high}.`.trim();
+    let control = null;
+    if (schema.ranges && name in schema.ranges) {
+      const [low, high] = schema.ranges[name];
       control = (
         <input
           id={id}
@@ -180,23 +180,32 @@ export default function NoShowPredictor({ mode = "member" }) {
       );
     }
 
-    const isCheckbox = !(name in schema.numeric_ranges) && !(name in schema.categorical_values);
+    const isCheckbox = !(schema.ranges && name in schema.ranges) && !(name in schema.categorical_values);
+
     return (
-      <div className={styles.field} key={name}>
+      <div key={name} className={isCheckbox ? styles.checkRow : styles.field}>
         {isCheckbox ? (
-          <div className={styles.checkRow}>
+          <>
             {control}
-            <label htmlFor={id}>{LABELS[name]}</label>
-          </div>
+            <label htmlFor={id} className={styles.label}>
+              {LABELS[name] ?? name}
+            </label>
+          </>
         ) : (
           <>
-            <label htmlFor={id} className={styles.label}>{LABELS[name]}</label>
+            <label htmlFor={id} className={styles.label}>
+              {LABELS[name] ?? name}
+            </label>
             {control}
           </>
         )}
-        <p id={hintId} className={styles.hint}>{hint}</p>
+        {hint && (
+          <p id={hintId} className={styles.hint}>
+            {hint}
+          </p>
+        )}
         {error && (
-          <p id={errorId} className={styles.error}>
+          <p id={errorId} role="alert" className={styles.error}>
             <strong>Problem:</strong> {error}
           </p>
         )}
@@ -214,7 +223,7 @@ export default function NoShowPredictor({ mode = "member" }) {
       </p>
       <p>{COPY.intro}</p>
 
-      {state === "loading" && <p>Loading model details…</p>}
+      {state === "loading" && <p>Loading workbench details…</p>}
 
       {state === "signin" && (
         <p>
@@ -224,7 +233,7 @@ export default function NoShowPredictor({ mode = "member" }) {
       {state === "forbidden" && (
         <div role="alert" className={styles.errorSummary}>
           <strong>Access denied.</strong>
-          <p>Predictions are available for members only. Administrator accounts cannot access this page.</p>
+          <p>The ML Workbench is available for members only. Administrator accounts cannot access this page.</p>
         </div>
       )}
       {state === "unavailable" && (
@@ -236,42 +245,94 @@ export default function NoShowPredictor({ mode = "member" }) {
 
       {state === "ready" && (
         <>
-          <div className={styles.presetRow}>
-            <span>Try an example:</span>
-            {PRESETS.map((preset) => (
-              <button key={preset.name} type="button" className={styles.button} onClick={() => applyPreset(preset)}>
-                {preset.name}
-              </button>
-            ))}
-          </div>
+          <nav className={styles.tabsContainer} aria-label="Workbench sections">
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "predict" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("predict")}
+              aria-selected={activeTab === "predict"}
+            >
+              🎯 Single Prediction
+            </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "supervised" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("supervised")}
+              aria-selected={activeTab === "supervised"}
+            >
+              📊 Supervised Benchmark
+            </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "clustering" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("clustering")}
+              aria-selected={activeTab === "clustering"}
+            >
+              🧩 Patient Clustering (PCA)
+            </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "faq" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("faq")}
+              aria-selected={activeTab === "faq"}
+            >
+              💬 Policy FAQ Assistant (LLM)
+            </button>
+          </nav>
 
-          <form onSubmit={handleSubmit} noValidate className={styles.form}>
-            {general.length > 0 && (
-              <div role="alert" className={styles.errorSummary}>
-                <strong>The estimate could not be made.</strong>
-                <ul>
-                  {general.map((message) => (
-                    <li key={message}>{message}</li>
-                  ))}
-                </ul>
+          {activeTab === "predict" && (
+            <div>
+              <div className={styles.presetRow}>
+                <span>Try an example:</span>
+                {PRESETS.map((preset) => (
+                  <button key={preset.name} type="button" className={styles.button} onClick={() => applyPreset(preset)}>
+                    {preset.name}
+                  </button>
+                ))}
               </div>
-            )}
-            <div className={styles.grid}>{FIELD_ORDER.map(renderField)}</div>
-            <div className={styles.actions}>
-              <button type="submit" className={styles.primary} disabled={busy}>
-                {busy ? "Working…" : "Estimate"}
-              </button>
-              <button type="button" className={styles.button} onClick={() => { setValues(PRESETS[0].values); clearFeedback(); }}>
-                Reset
-              </button>
+
+              <form onSubmit={handleSubmit} noValidate className={styles.form}>
+                {general.length > 0 && (
+                  <div role="alert" className={styles.errorSummary}>
+                    <strong>The estimate could not be made.</strong>
+                    <ul>
+                      {general.map((message) => (
+                        <li key={message}>{message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className={styles.grid}>{FIELD_ORDER.map(renderField)}</div>
+                <div className={styles.actions}>
+                  <button type="submit" className={styles.primary} disabled={busy}>
+                    {busy ? "Working…" : "Estimate"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.button}
+                    onClick={() => {
+                      setValues(PRESETS[0].values);
+                      clearFeedback();
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </form>
+
+              <div aria-live="polite">
+                {result && <ResultCard result={result} headingRef={resultHeading} />}
+              </div>
+
+              <AboutModel info={info} mode={mode} />
             </div>
-          </form>
+          )}
 
-          <div aria-live="polite">
-            {result && <ResultCard result={result} headingRef={resultHeading} />}
-          </div>
+          {activeTab === "supervised" && <SupervisedComparisonTab />}
 
-          <AboutModel info={info} mode={mode} />
+          {activeTab === "clustering" && <ClusteringTab />}
+
+          {activeTab === "faq" && <PolicyFaqTab />}
         </>
       )}
     </section>

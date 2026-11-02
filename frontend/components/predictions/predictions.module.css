@@ -1,4 +1,4 @@
-.page { max-width: 62rem; margin: 0 auto; padding: 1rem; }
+.page { max-width: 68rem; margin: 0 auto; padding: 1rem; }
 .banner { border: 2px solid currentColor; border-left-width: 8px; padding: 0.75rem 1rem; margin: 1rem 0; }
 .presetRow { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0; }
 .form { margin: 1rem 0; }
@@ -15,7 +15,7 @@
 .button, .primary { font: inherit; padding: 0.6rem 1rem; border: 2px solid currentColor; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; min-height: 2.75rem; }
 .primary { font-weight: 700; }
 .primary:disabled { cursor: progress; opacity: 0.6; }
-.button:focus-visible, .primary:focus-visible, .input:focus-visible, .checkbox:focus-visible, .about summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+.button:focus-visible, .primary:focus-visible, .input:focus-visible, .checkbox:focus-visible, .about summary:focus-visible, .tab:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
 .card { border: 2px solid currentColor; border-radius: 6px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
 .card h2:focus { outline: none; }
 .bigNumber { font-size: 2rem; font-weight: 700; margin: 0.25rem 0; }
@@ -27,3 +27,40 @@
 .disclaimer { font-style: italic; }
 .about { margin: 1.5rem 0; }
 .about summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; }
+
+/* Workbench Tabs */
+.tabsContainer { display: flex; flex-wrap: wrap; gap: 0.5rem; border-bottom: 2px solid currentColor; margin: 1.5rem 0 1rem 0; padding-bottom: 0.25rem; }
+.tab { font: inherit; padding: 0.6rem 1.1rem; border: 2px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: transparent; color: inherit; cursor: pointer; font-weight: 600; min-height: 2.5rem; }
+.activeTab { border-color: currentColor; background: rgba(127, 127, 127, 0.12); font-weight: 700; }
+
+/* Workbench Data Tables */
+.tableWrapper { overflow-x: auto; margin: 1rem 0; }
+.table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
+.table th, .table td { border: 1px solid currentColor; padding: 0.6rem 0.8rem; }
+.table th { background: rgba(127, 127, 127, 0.08); font-weight: 700; }
+.table tr:hover { background: rgba(127, 127, 127, 0.04); }
+
+/* Badges */
+.badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; border: 1px solid currentColor; }
+.badgeHigh { background: #d4edda; color: #155724; }
+.badgeMedium { background: #fff3cd; color: #856404; }
+.badgeLow { background: #f8d7da; color: #721c24; }
+.badgeFlag { background: #f8d7da; color: #721c24; font-weight: 800; }
+
+/* Cluster Cards Grid */
+.clusterGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.clusterCard { border: 2px solid currentColor; border-radius: 6px; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; }
+.clusterHeader { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; border-bottom: 1px dashed currentColor; padding-bottom: 0.5rem; }
+.clusterTitle { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.clusterSize { font-size: 0.85rem; opacity: 0.8; }
+.traitList { margin: 0.5rem 0; padding-left: 1.25rem; font-size: 0.9rem; }
+.recBox { border-top: 1px solid currentColor; margin-top: 0.75rem; padding-top: 0.5rem; font-size: 0.88rem; }
+
+/* Q&A Chat Assistant */
+.chatArea { display: flex; flex-direction: column; gap: 1rem; margin: 1rem 0; }
+.promptRow { display: flex; gap: 0.5rem; }
+.promptInput { flex: 1; font: inherit; padding: 0.6rem 0.8rem; border: 2px solid currentColor; border-radius: 4px; background: transparent; color: inherit; min-height: 2.75rem; }
+.answerBox { border: 2px solid currentColor; border-radius: 6px; padding: 1.2rem; margin-top: 1rem; }
+.citationsRow { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0; }
+.citationPill { padding: 0.2rem 0.6rem; border: 1px solid currentColor; border-radius: 12px; font-size: 0.8rem; font-family: monospace; }
+.chatMeta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; opacity: 0.85; margin-top: 0.75rem; border-top: 1px dashed currentColor; padding-top: 0.5rem; }
