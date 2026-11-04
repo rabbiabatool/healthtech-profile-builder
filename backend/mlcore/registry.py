@@ -22,6 +22,14 @@ PUBLIC_INFO_KEYS = [
     "limitations", "disclaimer",
 ]
 
+REQUIRED_METADATA_KEYS = (
+    "artifact_sha256",
+    "model_version",
+    "schema_version",
+    "threshold",
+    "risk_band_cutpoints",
+)
+
 
 class ModelUnavailable(RuntimeError):
     """The model cannot be used right now. The message is safe to show to callers."""
@@ -61,6 +69,26 @@ def load_model(artifact_dir=None):
             model_bytes = model_path.read_bytes()
         except (OSError, ValueError) as error:
             raise ModelUnavailable("The model files could not be read.") from error
+
+        if not isinstance(metadata, dict):
+            raise ModelUnavailable("The model metadata is invalid: expected a JSON object.")
+
+        missing_keys = [k for k in REQUIRED_METADATA_KEYS if k not in metadata]
+        if missing_keys:
+            raise ModelUnavailable(
+                f"The model metadata is missing required field(s): {', '.join(missing_keys)}."
+            )
+
+        cutpoints = metadata.get("risk_band_cutpoints")
+        if not isinstance(cutpoints, dict) or "HIGH" not in cutpoints or "MEDIUM" not in cutpoints:
+            raise ModelUnavailable(
+                "The model metadata has invalid risk_band_cutpoints: expected dict with HIGH and MEDIUM."
+            )
+
+        try:
+            float(metadata["threshold"])
+        except (TypeError, ValueError):
+            raise ModelUnavailable("The model metadata has an invalid threshold: expected a numeric value.")
 
         expected = metadata.get("artifact_sha256")
         if not expected or hashlib.sha256(model_bytes).hexdigest() != expected:
