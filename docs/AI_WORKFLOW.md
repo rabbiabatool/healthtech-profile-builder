@@ -357,3 +357,40 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Validation:
   - Frontend build: `npm run build` passed with 0 errors across 11 routes.
   - Full regression test suite: 186/186 passed in 101.51s (evidence documented in `docs/evidence/week4/phase4-regression-tests.txt`).
+
+### Entry 15: 2026-11-04 – Week 5 Phase 1: Advanced RAG, Hybrid Retrieval, Versioning & 20-Question Benchmark
+- Objective: Upgrade clinic policy retrieval into an enterprise-grade Advanced RAG system featuring document versioning, live add/update/delete re-indexing, metadata pre-filtering, hybrid BM25 + TF-IDF with Reciprocal Rank Fusion (RRF), chunk-size ablation experiments, and a rigorous 20-question retrieval benchmark evaluating Recall@K, Hit Rate, Groundedness, and Abstention accuracy.
+- Action:
+  - Advanced Hybrid Engine (`backend/rag/advanced_engine.py`):
+    - Implemented `DocumentMetadata` and `PolicyDocument` dataclasses supporting versioning (semver), category, department, target audience, SHA-256 content hashing, and active/soft-delete flags.
+    - Implemented lightweight pure-Python/NumPy `BM25Index` (k1=1.5, b=0.75) for exact lexical matching.
+    - Built `AdvancedHybridVectorStore` combining lexical BM25 rankings and sublinear TF-IDF cosine similarities via Reciprocal Rank Fusion ($k=60$) with exact entity/numeric token boosting.
+    - Provided dynamic mutations: `add_document`, `update_document`, `delete_document(soft=True/False)`, and instantaneous `reindex()` without server reboot.
+    - Added metadata pre-filtering across `category`, `department`, and `target_audience`.
+    - Executed chunk-size comparison experiment across Small (200 chars), Medium (400 chars), and Large (800 chars), selecting Medium as optimal for 100% hit rate and low token overhead (avg 148.5 tokens).
+  - 20-Question Evaluation Benchmark (`backend/rag/advanced_evaluation.py`):
+    - Curated 20 labeled clinical policy queries: 10 answerable, 4 ambiguous, 4 out-of-scope, and 2 safety/adversarial.
+    - Measured Recall@1, Recall@3, Recall@5, Top-3 Hit Rate, Citation Correctness, Groundedness, and Abstention Accuracy.
+    - Demonstrated measurable retrieval improvement:
+      - Baseline TF-IDF Abstention Accuracy: **33.3%**
+      - Advanced Hybrid RRF Abstention Accuracy: **100.0%** (+66.7% improvement in safely rejecting ungrounded or adversarial queries).
+    - Generated automated evaluation artifact: `docs/ml/RAG_ADVANCED_EVALUATION.md`.
+  - API Endpoints (`backend/rag/views.py`):
+    - `POST /api/v1/llm/rag/search/`: Hybrid search with metadata filtering and OpenAPI documentation.
+    - `GET /api/v1/llm/rag/eval-20/`: Admin/Member benchmark execution returning before/after comparison and chunk experiment stats.
+    - `POST /api/v1/llm/rag/documents/`: Admin-only document lifecycle management (add, update, delete, reindex) with CSRF protection and auditability.
+  - Test Suite (`backend/rag/tests_advanced.py`):
+    - 12 comprehensive unit and integration tests covering BM25 indexing, dynamic lifecycle, metadata filtering, chunk experiment, benchmark metrics, and RBAC security.
+- Scope:
+  - Files created/modified:
+    - `backend/rag/advanced_engine.py` (new)
+    - `backend/rag/advanced_evaluation.py` (new)
+    - `backend/rag/tests_advanced.py` (new)
+    - `backend/rag/views.py`
+    - `backend/rag/urls.py`
+    - `docs/ml/RAG_ADVANCED_EVALUATION.md` (new)
+    - `docs/evidence/week5/phase1-advanced-rag-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to `backend/rag/` advanced modules and new `/api/v1/llm/rag/` endpoints. All Week 1–4 authentication, member profiles, supervised ML predictions, clustering, and existing `/api/v1/llm/faq` endpoints remain unaffected.
+- Validation:
+  - Phase 1 test suite: 39/39 passed (`backend/rag/tests.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase1-advanced-rag-tests.txt`.
