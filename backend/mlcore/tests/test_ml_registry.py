@@ -67,8 +67,58 @@ def test_metadata_without_a_hash_is_refused(small_artifact_dir, tmp_path):
     metadata = json.loads(meta_path.read_text(encoding="utf-8"))
     del metadata["artifact_sha256"]
     meta_path.write_text(json.dumps(metadata), encoding="utf-8")
-    with pytest.raises(registry.ModelUnavailable, match="integrity"):
+    with pytest.raises(registry.ModelUnavailable, match="missing required field"):
         registry.load_model(target)
+
+
+def test_non_object_metadata_is_refused_and_recovers(small_artifact_dir, tmp_path):
+    """Reject non-dict metadata (e.g. list, null, int) without crashing with 500, and recover when fixed."""
+    target = _copy(small_artifact_dir, tmp_path)
+    meta_path = target / config.METADATA_FILENAME
+    valid_text = meta_path.read_text(encoding="utf-8")
+
+    for bad_content in ("[]", "null", '"just a string"', "123", "true"):
+        meta_path.write_text(bad_content, encoding="utf-8")
+        registry.clear_cache()
+        with pytest.raises(registry.ModelUnavailable, match="JSON object"):
+            registry.load_model(target)
+
+    # Verify recovery after artifact is repaired
+    meta_path.write_text(valid_text, encoding="utf-8")
+    repaired = registry.load_model(target)
+    assert repaired is not None
+    assert isinstance(repaired.metadata, dict)
+    assert repaired.metadata["model_version"] == config.MODEL_VERSION
+
+
+def test_missing_required_metadata_fields_is_refused_and_recovers(small_artifact_dir, tmp_path):
+    """Validate required metadata fields before caching, and recover when repaired."""
+    target = _copy(small_artifact_dir, tmp_path)
+    meta_path = target / config.METADATA_FILENAME
+    valid_text = meta_path.read_text(encoding="utf-8")
+    valid_data = json.loads(valid_text)
+
+    # Missing threshold
+    bad_data = dict(valid_data)
+    del bad_data["threshold"]
+    meta_path.write_text(json.dumps(bad_data), encoding="utf-8")
+    registry.clear_cache()
+    with pytest.raises(registry.ModelUnavailable, match="missing required field.*threshold"):
+        registry.load_model(target)
+
+    # Invalid risk_band_cutpoints
+    bad_data = dict(valid_data)
+    bad_data["risk_band_cutpoints"] = "not-a-dict"
+    meta_path.write_text(json.dumps(bad_data), encoding="utf-8")
+    registry.clear_cache()
+    with pytest.raises(registry.ModelUnavailable, match="invalid risk_band_cutpoints"):
+        registry.load_model(target)
+
+    # Verify recovery after repair
+    meta_path.write_text(valid_text, encoding="utf-8")
+    repaired = registry.load_model(target)
+    assert repaired is not None
+    assert "threshold" in repaired.metadata
 
 
 def test_prediction_has_the_documented_fields_and_a_consistent_band(small_artifact_dir):

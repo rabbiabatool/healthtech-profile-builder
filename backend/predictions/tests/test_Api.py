@@ -131,6 +131,41 @@ def test_a_tampered_model_gives_503(tampered_model):
     assert "integrity" in response.data["detail"]
 
 
+def test_malformed_metadata_gives_503_and_recovers(artifact_dir, monkeypatch, tmp_path):
+    import json, shutil
+    from pathlib import Path
+    from mlcore import registry
+
+    target = tmp_path / "corrupt_meta"
+    shutil.copytree(artifact_dir, target)
+    meta_path = target / config.METADATA_FILENAME
+    valid_text = meta_path.read_text(encoding="utf-8")
+
+    monkeypatch.setattr(config, "ARTIFACT_DIR", target)
+
+    # 1. Non-object metadata (list)
+    meta_path.write_text("[]", encoding="utf-8")
+    registry.clear_cache()
+    info_res = _get_model_info()
+    assert info_res.status_code == 503
+    assert "JSON object" in info_res.data["detail"]
+
+    predict_res = _post(VALID)
+    assert predict_res.status_code == 503
+    assert "JSON object" in predict_res.data["detail"]
+
+    # 2. Repair metadata and verify immediate recovery
+    meta_path.write_text(valid_text, encoding="utf-8")
+    registry.clear_cache()
+    recovery_info = _get_model_info()
+    assert recovery_info.status_code == 200
+    assert "input_schema" in recovery_info.data
+
+    recovery_predict = _post(VALID)
+    assert recovery_predict.status_code == 200
+    assert "probability" in recovery_predict.data
+
+
 def test_model_info_has_what_a_form_needs_and_hides_internals(model_ready):
     response = _get_model_info(role=MEMBER_ROLE)
     assert response.status_code == 200

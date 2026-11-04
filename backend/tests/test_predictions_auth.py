@@ -1,6 +1,9 @@
+import json
+from pathlib import Path
 import pytest
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from mlcore import config, registry
 from predictions.tests.conftest import artifact_dir, model_ready  # noqa: F401
 from predictions.tests.samples import VALID
 
@@ -84,3 +87,54 @@ def test_admin_predictions_url_does_not_exist(admin_client):
     response = admin_client.get("/api/admin/predictions")
     assert response.status_code == 404
 
+
+def test_malformed_metadata_returns_503_not_500_and_recovers(api_client, user, login, csrf_header, model_ready, artifact_dir):
+    """Ensure malformed or non-object metadata returns documented 503 (not 500), and recovers when repaired."""
+    login(api_client)
+    headers = csrf_header(api_client)
+    meta_path = Path(artifact_dir) / config.METADATA_FILENAME
+    valid_content = meta_path.read_text(encoding="utf-8")
+
+    try:
+        # 1. Non-object metadata: JSON list []
+        meta_path.write_text("[]", encoding="utf-8")
+        registry.clear_cache()
+        response = api_client.get(MODEL_URL)
+        assert response.status_code == 503
+        assert "expected a JSON object" in response.json().get("detail", "")
+
+        post_res = api_client.post(PREDICT_URL, VALID, format="json", **headers)
+        assert post_res.status_code == 503
+        assert "expected a JSON object" in post_res.json().get("detail", "")
+
+        # 2. Non-object metadata: JSON null
+        meta_path.write_text("null", encoding="utf-8")
+        registry.clear_cache()
+        response = api_client.get(MODEL_URL)
+        assert response.status_code == 503
+        assert "expected a JSON object" in response.json().get("detail", "")
+
+        # 3. Missing required field (e.g. threshold deleted)
+        valid_json = json.loads(valid_content)
+        bad_json = dict(valid_json)
+        del bad_json["threshold"]
+        meta_path.write_text(json.dumps(bad_json), encoding="utf-8")
+        registry.clear_cache()
+        response = api_client.get(MODEL_URL)
+        assert response.status_code == 503
+        assert "missing required field" in response.json().get("detail", "")
+
+        # 4. Recovery: restore valid metadata and verify 200 without restart
+        meta_path.write_text(valid_content, encoding="utf-8")
+        registry.clear_cache()
+        recovery_get = api_client.get(MODEL_URL)
+        assert recovery_get.status_code == 200
+        assert "input_schema" in recovery_get.json()
+
+        recovery_post = api_client.post(PREDICT_URL, VALID, format="json", **headers)
+        assert recovery_post.status_code == 200
+        assert "probability" in recovery_post.json()
+
+    finally:
+        meta_path.write_text(valid_content, encoding="utf-8")
+        registry.clear_cache()
