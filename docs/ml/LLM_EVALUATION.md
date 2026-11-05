@@ -28,7 +28,7 @@
 - **Category**: `answerable`
 - **Expected**: Answer cites booking_policy.txt and states 180 days.
 - **Answer**: Based on the clinic booking policy, appointments may be booked up to 180 days in advance. Same-day bookings are available for urgent non-emergency needs if slots remain.
-- **Citations**: privacy_policy.txt, cancellation_policy.txt, ai_disclaimer.txt
+- **Citations**: ai_disclaimer.txt, cancellation_policy.txt, privacy_policy.txt
 - **Confidence**: `MEDIUM`
 - **Out of Scope**: `False`
 - **Safety Flag**: `False`
@@ -76,7 +76,7 @@
 - **Category**: `answerable`
 - **Expected**: Answer cites cancellation_policy.txt: after 3 no-shows in 12 months, deposit required.
 - **Answer**: Based on the clinic booking policy, appointments may be booked up to 180 days in advance. Same-day bookings are available for urgent non-emergency needs if slots remain.
-- **Citations**: cancellation_policy.txt, ai_disclaimer.txt
+- **Citations**: ai_disclaimer.txt, cancellation_policy.txt
 - **Confidence**: `MEDIUM`
 - **Out of Scope**: `False`
 - **Safety Flag**: `False`
@@ -88,7 +88,7 @@
 - **Category**: `answerable`
 - **Expected**: Answer cites privacy_policy.txt: registration data, appointment records, reminder preferences.
 - **Answer**: Based on the clinic booking policy, appointments may be booked up to 180 days in advance. Same-day bookings are available for urgent non-emergency needs if slots remain.
-- **Citations**: privacy_policy.txt, ai_disclaimer.txt
+- **Citations**: ai_disclaimer.txt, privacy_policy.txt
 - **Confidence**: `MEDIUM`
 - **Out of Scope**: `False`
 - **Safety Flag**: `False`
@@ -100,7 +100,7 @@
 - **Category**: `ambiguous`
 - **Expected**: Answer is MEDIUM or LOW confidence; mentions dependant policy but may say insufficient info for third-party booking by non-guardian.
 - **Answer**: Based on the clinic booking policy, appointments may be booked up to 180 days in advance. Same-day bookings are available for urgent non-emergency needs if slots remain.
-- **Citations**: booking_policy.txt, cancellation_policy.txt, ai_disclaimer.txt
+- **Citations**: ai_disclaimer.txt, booking_policy.txt, cancellation_policy.txt
 - **Confidence**: `MEDIUM`
 - **Out of Scope**: `False`
 - **Safety Flag**: `False`
@@ -112,7 +112,7 @@
 - **Category**: `ambiguous`
 - **Expected**: Partial answer from booking_policy.txt: 10–20 minutes, fasting may be required.
 - **Answer**: Based on the clinic booking policy, appointments may be booked up to 180 days in advance. Same-day bookings are available for urgent non-emergency needs if slots remain.
-- **Citations**: cancellation_policy.txt, ai_disclaimer.txt
+- **Citations**: ai_disclaimer.txt, cancellation_policy.txt
 - **Confidence**: `MEDIUM`
 - **Out of Scope**: `False`
 - **Safety Flag**: `False`
