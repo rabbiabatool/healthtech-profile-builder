@@ -477,3 +477,47 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: Isolated to `backend/agents/` tools and planner. All existing endpoints and past weekly milestones remain 100% regression-free.
 - Validation:
   - Phase 3 test suite: 55/55 passed (`backend/agents/tests_phase3.py`, `backend/agents/tests_phase2.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase3-agent-tools-tests.txt`.
+
+### Entry 18: 2026-11-08 – Week 5 Phase 4: Background Task Queue, Model Drift Monitoring & Admin Audit UI
+- Objective: Complete Week 5 implementation by building an asynchronous background task queue with safe transient retries, synthetic model drift monitoring using the Two-Sample Kolmogorov-Smirnov test (scipy.stats.ks_2samp) and latency percentiles, a unified admin audit dashboard, and a 5th interactive tab in the Next.js ML Workbench.
+- Action:
+  - Background Task Queue (`backend/agents/task_queue.py`):
+    - Thread-safe task queue managing asynchronous `document_indexing` and `batch_predictions` tasks.
+    - Lifecycle state machine: `queued` $\rightarrow$ `running` $\rightarrow$ `retrying` $\rightarrow$ `succeeded` or `failed`.
+    - Automated transient failure recovery with exponential backoff delay (max 3 retries).
+  - Synthetic Model Drift Telemetry (`backend/agents/monitoring.py`):
+    - Logs live inference probabilities, latency percentiles (p50, p95, p99), and failure rates.
+    - Compares live prediction distribution against baseline validation distribution using the Two-Sample Kolmogorov-Smirnov (KS) test.
+    - Categorizes drift severity (`NORMAL_WITHIN_BOUNDS` vs `ELEVATED_LOGISTICAL_SHIFT`) with explicit non-clinical operational disclaimers.
+  - Admin Audit Endpoints (`backend/agents/admin_views.py`, `backend/agents/urls.py`):
+    - `GET /api/v1/agents/admin/audit/`: Admin-restricted endpoint consolidating workflow traces, write approvals, retrieval sources, active document versions, and model drift telemetry.
+    - `POST /api/v1/agents/jobs/`: Submits async background task jobs.
+    - `GET /api/v1/agents/jobs/<job_id>/`: Inspects job status and execution result.
+    - `GET /api/v1/agents/monitoring/metrics/`: Live KS test drift statistics and latency percentiles.
+  - Interactive Workbench UI (`frontend/components/predictions/AgentsAutomationTab.js`):
+    - Integrated Tab 5: `🤖 AI Agents & Automation` into `NoShowPredictor.js`.
+    - Features:
+      - Multi-step workflow runner with example prompts and step-by-step trace viewer.
+      - Interactive write approval card with explicit human confirmation button.
+      - Asynchronous background task trigger buttons and live task queue table.
+      - Statistical model drift card displaying KS statistic, p-value, drift severity, and latency percentiles.
+  - Production Build:
+    - Executed `npm run build` in Next.js Turbopack with 0 errors across all 11 routes.
+  - Test Suite (`backend/agents/tests_phase4.py`):
+    - 9 comprehensive unit and integration tests covering queue execution, transient retries, KS drift test, RBAC security, and job endpoints.
+- Scope:
+  - Files created/modified:
+    - `backend/agents/task_queue.py` (new)
+    - `backend/agents/monitoring.py` (new)
+    - `backend/agents/admin_views.py` (new)
+    - `backend/agents/tests_phase4.py` (new)
+    - `backend/agents/urls.py`
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/AgentsAutomationTab.js` (new)
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `docs/evidence/week5/phase4-full-regression-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to background queue, model telemetry, and admin audit views. All Week 1–5 features remain 100% regression-free.
+- Validation:
+  - Phase 4 regression test suite: 64/64 passed (`backend/agents/tests_phase4.py`, `backend/agents/tests_phase3.py`, `backend/agents/tests_phase2.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase4-full-regression-tests.txt`.
+  - Frontend production build: `npm run build` completed with 0 errors across all 11 routes.

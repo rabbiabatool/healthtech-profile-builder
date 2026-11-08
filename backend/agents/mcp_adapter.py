@@ -154,3 +154,4 @@ _mcp_adapter = MCPToolAdapter()
 
 def get_mcp_adapter() -> MCPToolAdapter:
     return _mcp_adapter
+

@@ -120,3 +120,4 @@ def check_prompt_security(text: str) -> Dict[str, any]:
             }
 
     return {"is_safe": True, "is_injection": False, "is_medical": False, "reason": ""}
+

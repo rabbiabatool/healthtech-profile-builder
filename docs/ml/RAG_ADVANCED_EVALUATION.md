@@ -4,7 +4,7 @@
 > **Methodology:** Evaluates retrieval performance strictly isolated from generation across 20 labeled queries.
 > Compares **Baseline TF-IDF Single Retrieval** against **Advanced Hybrid Retrieval (BM25 + TF-IDF with Reciprocal Rank Fusion)**.
 
-**Benchmark Date:** `2026-11-08T13:04:33.800019+00:00` | **Questions Evaluated:** `20`
+**Benchmark Date:** `2026-11-08T13:15:45.472783+00:00` | **Questions Evaluated:** `20`
 
 ## 1. Before vs. After Retrieval Performance Comparison
 
@@ -26,9 +26,9 @@
 
 | Configuration | Chunk Size | Overlap | Indexed Chunks | Hit Rate | Avg Retrieved Tokens | Latency |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Small (200 chars)** | 200 chars | 40 chars | 20 chunks | 100.0% | 99.5 tokens | 0.0 ms |
-| **Medium (400 chars, Baseline)** | 400 chars | 70 chars | 16 chunks | 100.0% | 146.7 tokens | 16.87 ms |
-| **Large (800 chars)** | 800 chars | 120 chars | 9 chunks | 100.0% | 264.0 tokens | 16.46 ms |
+| **Small (200 chars)** | 200 chars | 40 chars | 20 chunks | 100.0% | 99.5 tokens | 16.09 ms |
+| **Medium (400 chars, Baseline)** | 400 chars | 70 chars | 16 chunks | 100.0% | 146.7 tokens | 35.8 ms |
+| **Large (800 chars)** | 800 chars | 120 chars | 9 chunks | 100.0% | 264.0 tokens | 33.24 ms |
 
 **Selected Optimal Strategy:** `Medium (400 chars, Baseline)`
 *Medium chunk size (400 chars with 70 overlap) achieves 100% retrieval hit rate while maintaining precise paragraph-level citations and minimizing token consumption.*

@@ -84,3 +84,4 @@ class ValidationErrorReport(BaseModel):
     is_valid: bool
     errors: List[str] = Field(default_factory=list)
     remediation_hint: Optional[str] = None
+

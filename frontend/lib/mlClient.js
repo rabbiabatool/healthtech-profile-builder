@@ -82,3 +82,80 @@ export async function fetchFaqEvaluation() {
   });
   return { status: response.status, data: await readJson(response) };
 }
+
+// ─── Week 5: Controlled Agents, Task Queue & Monitoring ─────────────────────
+
+export async function executeAgentWorkflow(query, humanConfirmed = false, idempotencyKey = null) {
+  const csrfResponse = await fetch(`${API_BASE}${CSRF_PATH}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const csrf = await readJson(csrfResponse);
+
+  const response = await fetch(`${API_BASE}/api/v1/agents/workflow/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrf?.csrfToken ?? "",
+    },
+    body: JSON.stringify({
+      query,
+      human_confirmed: humanConfirmed,
+      idempotency_key: idempotencyKey,
+    }),
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+
+export async function fetchAgentTools() {
+  const response = await fetch(`${API_BASE}/api/v1/agents/tools/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+
+export async function submitBackgroundTask(jobType, payload = {}) {
+  const csrfResponse = await fetch(`${API_BASE}${CSRF_PATH}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const csrf = await readJson(csrfResponse);
+
+  const response = await fetch(`${API_BASE}/api/v1/agents/jobs/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrf?.csrfToken ?? "",
+    },
+    body: JSON.stringify({ job_type: jobType, payload, run_sync: false }),
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+
+export async function fetchBackgroundJobs() {
+  const response = await fetch(`${API_BASE}/api/v1/agents/jobs/list/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+
+export async function fetchModelMonitoring() {
+  const response = await fetch(`${API_BASE}/api/v1/agents/monitoring/metrics/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+
+export async function fetchAdminAudit() {
+  const response = await fetch(`${API_BASE}/api/v1/agents/admin/audit/`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return { status: response.status, data: await readJson(response) };
+}
+

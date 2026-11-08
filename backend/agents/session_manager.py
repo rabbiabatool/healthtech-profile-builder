@@ -199,3 +199,4 @@ def get_session_manager() -> SessionManager:
     if _global_session_manager is None:
         _global_session_manager = SessionManager()
     return _global_session_manager
+

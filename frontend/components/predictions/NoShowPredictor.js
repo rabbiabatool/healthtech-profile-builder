@@ -9,6 +9,7 @@ import ResultCard from "./ResultCard";
 import SupervisedComparisonTab from "./SupervisedComparisonTab";
 import ClusteringTab from "./ClusteringTab";
 import PolicyFaqTab from "./PolicyFaqTab";
+import AgentsAutomationTab from "./AgentsAutomationTab";
 import styles from "./predictions.module.css";
 import {
   DEFAULT_DISCLAIMER,
@@ -281,6 +282,14 @@ export default function NoShowPredictor({ mode = "member" }) {
             >
               💬 Policy FAQ Assistant (LLM)
             </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "agents" ? styles.activeTab : ""}`}
+              onClick={() => setActiveTab("agents")}
+              aria-selected={activeTab === "agents"}
+            >
+              🤖 AI Agents & Automation
+            </button>
           </nav>
 
           {activeTab === "predict" && (
@@ -336,6 +345,8 @@ export default function NoShowPredictor({ mode = "member" }) {
           {activeTab === "clustering" && <ClusteringTab />}
 
           {activeTab === "faq" && <PolicyFaqTab />}
+
+          {activeTab === "agents" && <AgentsAutomationTab />}
         </>
       )}
     </section>

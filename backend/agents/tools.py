@@ -406,3 +406,4 @@ def list_tools() -> List[Dict[str, Any]]:
         }
         for t in TOOL_REGISTRY.values()
     ]
+

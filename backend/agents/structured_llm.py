@@ -285,3 +285,4 @@ def run_structured_generation(
     session_mgr.add_turn(session_id, role="assistant", content=validated_response.answer)
 
     return validated_response
+
