@@ -30,6 +30,7 @@ export default function AgentsAutomationTab() {
   const [workflowState, setWorkflowState] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
 
   const [tools, setTools] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -42,16 +43,27 @@ export default function AgentsAutomationTab() {
 
   async function loadToolsAndTelemetry() {
     try {
-      const [toolsRes, jobsRes, monRes] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchAgentTools(),
         fetchBackgroundJobs(),
         fetchModelMonitoring(),
       ]);
+
+      const toolsRes = results[0].status === "fulfilled" ? results[0].value : null;
+      const jobsRes = results[1].status === "fulfilled" ? results[1].value : null;
+      const monRes = results[2].status === "fulfilled" ? results[2].value : null;
+
+      if (toolsRes?.status === 401 || jobsRes?.status === 401 || monRes?.status === 401) {
+        setIsUnauthorized(true);
+      } else {
+        setIsUnauthorized(false);
+      }
+
       if (toolsRes?.data?.tools) setTools(toolsRes.data.tools);
       if (jobsRes?.data?.jobs) setJobs(jobsRes.data.jobs);
       if (monRes?.data) setMonitoring(monRes.data);
-    } catch (err) {
-      console.error("Failed loading agent telemetry:", err);
+    } catch {
+      // Gracefully handle any unexpected errors
     }
   }
 
@@ -65,8 +77,11 @@ export default function AgentsAutomationTab() {
       const res = await executeAgentWorkflow(q, confirmed, idemKey);
       if (res.status === 200 && res.data) {
         setWorkflowState(res.data);
+      } else if (res.status === 401) {
+        setIsUnauthorized(true);
+        setErrorMsg("Authentication required. Please sign in as a Member or Admin.");
       } else {
-        setErrorMsg(res.data?.detail || "Agent workflow execution failed.");
+        setErrorMsg(res.data?.detail || res.error || "Agent workflow execution failed.");
       }
     } catch (err) {
       setErrorMsg("Network error executing agent workflow.");
@@ -79,10 +94,13 @@ export default function AgentsAutomationTab() {
   async function handleTriggerJob(jobType) {
     setIsSubmittingJob(true);
     try {
-      await submitBackgroundTask(jobType, { cohort_size: 50 });
+      const res = await submitBackgroundTask(jobType, { cohort_size: 50 });
+      if (res.status === 401) {
+        setIsUnauthorized(true);
+      }
       await loadToolsAndTelemetry();
-    } catch (err) {
-      console.error("Job submit failed:", err);
+    } catch {
+      // Graceful fallback
     } finally {
       setIsSubmittingJob(false);
     }
@@ -97,6 +115,24 @@ export default function AgentsAutomationTab() {
           asynchronous background task queues, and statistical model drift monitoring.
         </p>
       </header>
+
+      {isUnauthorized && (
+        <div
+          role="alert"
+          style={{
+            background: "#eff6ff",
+            color: "#1e40af",
+            border: "1px solid #bfdbfe",
+            padding: "12px 16px",
+            borderRadius: "6px",
+            marginBottom: "16px",
+            fontSize: "0.9rem",
+          }}
+        >
+          ℹ️ <strong>Authentication Notice:</strong> You are currently not signed in. Log in as a{" "}
+          <strong>Member</strong> or <strong>Admin</strong> to execute live workflows and submit background jobs.
+        </div>
+      )}
 
       {/* ─── 1. Multi-Step Workflow Runner ─── */}
       <section className={styles.comparisonCard}>
