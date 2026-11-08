@@ -394,3 +394,48 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: Isolated to `backend/rag/` advanced modules and new `/api/v1/llm/rag/` endpoints. All Week 1–4 authentication, member profiles, supervised ML predictions, clustering, and existing `/api/v1/llm/faq` endpoints remain unaffected.
 - Validation:
   - Phase 1 test suite: 39/39 passed (`backend/rag/tests.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase1-advanced-rag-tests.txt`.
+
+### Entry 16: 2026-11-08 – Week 5 Phase 2: Structured Outputs, Schema Validation, Session History & Redaction
+- Objective: Implement production-grade structured LLM outputs enforced by Pydantic schemas, bounded retry-on-invalid-output loop, stateful session history with sliding-window truncation and summarization, explicit token budgets, PII/PHI redaction, and prompt injection defense.
+- Action:
+  - Sanitization & Security Guard (`backend/agents/redaction.py`):
+    - Redacts SSNs, credit card numbers, email addresses, phone numbers, API keys/Bearer tokens, passwords, and MRNs from prompts and logs.
+    - Deep dictionary sanitization for structured payloads.
+    - Prompt injection detection for DAN mode, jailbreaks, and system prompt extractors.
+    - Clinical triage detection preventing unauthorized diagnostic/prescriptive AI responses.
+  - Typed Contracts (`backend/agents/schemas.py`):
+    - `StructuredAgentResponse`: session_id, intent, status, thought_process, answer, citations, confidence_score, tool_calls, tool_results, token accounting, validation attempts, and safety flags.
+    - `AppointmentBookingRequest`: typed contract for appointment scheduling parameters.
+    - `ValidationErrorReport`: structured error diagnosis.
+  - Session & Budget Management (`backend/agents/session_manager.py`):
+    - Thread-safe session storage tracking turns, lifetime tokens, and timestamps.
+    - Sliding window truncation: condenses older turns into an executive context summary when exceeding token threshold while preserving recent turns verbatim.
+    - `TokenBudgetManager`: computes prompt token budgets and enforces per-request limits.
+  - Structured LLM Engine (`backend/agents/structured_llm.py`):
+    - Markdown code fence stripper and JSON schema validator.
+    - Bounded retry loop (max 3 retries) with targeted error feedback injection into successive prompts.
+    - Deterministic fallback ensuring system resilience during network interruptions or quota limits.
+  - REST Endpoints (`backend/agents/views.py`, `backend/agents/urls.py`):
+    - `POST /api/v1/agents/chat/`: Multi-turn structured chat with token budgeting.
+    - `GET/DELETE /api/v1/agents/sessions/<id>/`: Session state inspection and clearing.
+    - `POST /api/v1/agents/validate-schema/`: Diagnostic endpoint testing schema enforcement.
+  - Test Suite (`backend/agents/tests_phase2.py`):
+    - 17 unit and integration tests covering redaction, injection defense, clinical safety, schema validation, sliding window summarization, token budgeting, and REST endpoints.
+- Scope:
+  - Files created/modified:
+    - `backend/agents/__init__.py` (new)
+    - `backend/agents/apps.py` (new)
+    - `backend/agents/redaction.py` (new)
+    - `backend/agents/schemas.py` (new)
+    - `backend/agents/session_manager.py` (new)
+    - `backend/agents/structured_llm.py` (new)
+    - `backend/agents/views.py` (new)
+    - `backend/agents/urls.py` (new)
+    - `backend/agents/tests_phase2.py` (new)
+    - `backend/config/settings.py`
+    - `backend/config/urls.py`
+    - `docs/evidence/week5/phase2-structured-llm-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to new `backend/agents/` app. All Week 1–4 authentication, member profiles, predictions, clustering, and Week 5 Phase 1 RAG endpoints remain 100% regression-free.
+- Validation:
+  - Phase 2 test suite: 39/39 passed (`backend/agents/tests_phase2.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase2-structured-llm-tests.txt`.

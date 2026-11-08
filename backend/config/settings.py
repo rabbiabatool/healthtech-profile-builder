@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "predictions",
     "rag",
+    "agents",
 ]
 
 MIDDLEWARE = [
