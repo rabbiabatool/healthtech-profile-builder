@@ -439,3 +439,41 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
 - Blast radius: Isolated to new `backend/agents/` app. All Week 1–4 authentication, member profiles, predictions, clustering, and Week 5 Phase 1 RAG endpoints remain 100% regression-free.
 - Validation:
   - Phase 2 test suite: 39/39 passed (`backend/agents/tests_phase2.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase2-structured-llm-tests.txt`.
+
+### Entry 17: 2026-11-08 – Week 5 Phase 3: Controlled Tool-Using Agent, 5 Typed Tools & MCP Adapter
+- Objective: Build a controlled, permission-aware multi-step agent orchestrating 5 typed tools (4 read-only analytical tools and 1 human-in-the-loop write tool), a Model Context Protocol (MCP) JSON-RPC tool adapter, and a stateful execution planner with bounded step limits and error recovery.
+- Action:
+  - Five Typed Tools (`backend/agents/tools.py`):
+    - Tool 1: `search_approved_documents` – hybrid RAG retrieval of verified clinic policies.
+    - Tool 2: `check_appointment_availability` – department-specific fictional appointment slot checking.
+    - Tool 3: `request_supervised_prediction` – supervised ML no-show risk estimation with operational disclaimers.
+    - Tool 4: `retrieve_cluster_summaries` – anonymized patient engagement persona statistics.
+    - Tool 5: `schedule_mock_appointment` (Write Tool) – enforces server-side authorization, explicit human confirmation flag, and UUID-based idempotency key deduplication.
+  - Model Context Protocol Adapter (`backend/agents/mcp_adapter.py`):
+    - Conforms to MCP JSON-RPC standard (`list_tools`, `call_tool`).
+    - Validates inputs against typed JSON Schemas and enforces runtime role boundaries.
+    - Masks all PII/PHI in MCP requests and output content blocks.
+  - Multi-Step Stateful Planner (`backend/agents/planner.py`):
+    - Orchestrates Plan $\rightarrow$ Tool Selection $\rightarrow$ Validation $\rightarrow$ Execution $\rightarrow$ Recovery $\rightarrow$ Response.
+    - Captures detailed execution traces (step number, phase, tool name, sanitized arguments, status, latency ms).
+    - Halts on write operations when human confirmation is pending (`status="confirmation_required"`), providing structured draft summaries.
+    - Recovers gracefully from tool failures and enforces strict `max_steps=5` bound preventing infinite loops.
+  - REST Endpoints (`backend/agents/views.py`, `backend/agents/urls.py`):
+    - `POST /api/v1/agents/workflow/`: Executes multi-step workflows with full execution trace auditing.
+    - `GET /api/v1/agents/tools/`: Discovers typed tools and schemas.
+    - `POST /api/v1/agents/mcp/call/`: MCP-standard tool execution interface.
+  - Test Suite (`backend/agents/tests_phase3.py`):
+    - 16 comprehensive unit and integration tests covering all 5 tools, permission denials, MCP adapter, human confirmation gate, idempotency replays, max-step limits, and REST endpoints.
+- Scope:
+  - Files created/modified:
+    - `backend/agents/tools.py` (new)
+    - `backend/agents/mcp_adapter.py` (new)
+    - `backend/agents/planner.py` (new)
+    - `backend/agents/views.py`
+    - `backend/agents/urls.py`
+    - `backend/agents/tests_phase3.py` (new)
+    - `docs/evidence/week5/phase3-agent-tools-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to `backend/agents/` tools and planner. All existing endpoints and past weekly milestones remain 100% regression-free.
+- Validation:
+  - Phase 3 test suite: 55/55 passed (`backend/agents/tests_phase3.py`, `backend/agents/tests_phase2.py`, `backend/rag/tests_advanced.py`, `backend/tests/test_api_docs.py`). Evidence recorded in `docs/evidence/week5/phase3-agent-tools-tests.txt`.

@@ -165,3 +165,127 @@ class SchemaValidationUtilityView(APIView):
             ),
         )
         return Response(report.model_dump())
+
+
+class AgentWorkflowView(APIView):
+    """POST /api/v1/agents/workflow/ – execute stateful multi-step workflow with traces."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStandardUser | IsAdminRole]
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        summary="Execute stateful multi-step agent workflow with execution traces",
+        description=(
+            "Runs the complete plan -> tool selection -> validation -> execution -> response loop. "
+            "Enforces server-side authorization on each tool, records execution traces, respects "
+            "human confirmation requirements for writes, and bounds retries."
+        ),
+        tags=[AGENTS_TAG],
+        parameters=[CSRF_HEADER],
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="Multi-step workflow state and traces."),
+            400: OpenApiResponse(description="Invalid request."),
+            401: UNAUTHENTICATED,
+            403: FORBIDDEN,
+        },
+    )
+    def post(self, request):
+        from agents.planner import MultiStepAgentPlanner, asdict
+
+        data = request.data or {}
+        query = str(data.get("query", "")).strip()
+        if not query:
+            return Response({"detail": "The 'query' field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        human_confirmed = bool(data.get("human_confirmed", False))
+        idempotency_key = data.get("idempotency_key")
+        session_id = data.get("session_id", "default_session")
+
+        planner = MultiStepAgentPlanner(max_steps=5)
+        state = planner.execute_workflow(
+            user_query=query,
+            user=request.user,
+            session_id=session_id,
+            human_confirmed=human_confirmed,
+            idempotency_key=idempotency_key,
+        )
+
+        return Response({
+            "workflow_id": state.workflow_id,
+            "user_query": state.user_query,
+            "session_id": state.session_id,
+            "is_completed": state.is_completed,
+            "requires_human_confirmation": state.requires_human_confirmation,
+            "confirmation_prompt": state.confirmation_prompt,
+            "pending_draft": state.pending_draft,
+            "final_response": state.final_response,
+            "traces": [asdict(t) for t in state.traces],
+        })
+
+
+class ToolsListView(APIView):
+    """GET /api/v1/agents/tools/ – discover typed agent tools and schemas."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStandardUser | IsAdminRole]
+
+    @extend_schema(
+        summary="List typed agent tools and contracts",
+        tags=[AGENTS_TAG],
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="Available tools."),
+            401: UNAUTHENTICATED,
+            403: FORBIDDEN,
+        },
+    )
+    def get(self, request):
+        from agents.mcp_adapter import get_mcp_adapter
+        adapter = get_mcp_adapter()
+        return Response({
+            "tools": adapter.list_mcp_tools(),
+            "server": adapter.server_name,
+            "version": adapter.version,
+        })
+
+
+class MCPToolCallView(APIView):
+    """POST /api/v1/agents/mcp/call/ – MCP JSON-RPC standard tool execution."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsStandardUser | IsAdminRole]
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        summary="Execute tool via Model Context Protocol (MCP) standard adapter",
+        tags=[AGENTS_TAG],
+        parameters=[CSRF_HEADER],
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="MCP execution response."),
+            400: OpenApiResponse(description="Invalid request."),
+            401: UNAUTHENTICATED,
+            403: FORBIDDEN,
+        },
+    )
+    def post(self, request):
+        from agents.mcp_adapter import get_mcp_adapter
+
+        data = request.data or {}
+        tool_name = str(data.get("name", "")).strip()
+        if not tool_name:
+            return Response({"detail": "Tool 'name' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        arguments = data.get("arguments", {})
+        human_confirmed = bool(data.get("human_confirmed", False))
+        idempotency_key = data.get("idempotency_key")
+
+        adapter = get_mcp_adapter()
+        res = adapter.call_mcp_tool(
+            tool_name=tool_name,
+            arguments=arguments,
+            user=request.user,
+            human_confirmed=human_confirmed,
+            idempotency_key=idempotency_key,
+        )
+        return Response(res)
+
