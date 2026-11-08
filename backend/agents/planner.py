@@ -11,14 +11,96 @@ Features:
 """
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from agents.redaction import check_prompt_security, redact_sensitive_data, sanitize_dict_deep
 from agents.schemas import CitationItem, StructuredAgentResponse, ToolCallRequest, ToolExecutionResult
 from agents.tools import TOOL_REGISTRY, BaseAgentTool, get_tool
+
+
+def extract_appointment_datetime(query: str, ref_date: Optional[date] = None) -> tuple[str, Optional[str]]:
+    """Extracts target date (YYYY-MM-DD) and optional slot time (HH:MM) from natural language query.
+    
+    Defaults ref_date to date(2026, 11, 8) (project benchmark timeline).
+    """
+    if ref_date is None:
+        ref_date = date(2026, 11, 8)
+    
+    q_lower = query.lower()
+    
+    # 1. Extract Date
+    iso_match = re.search(r"\b(202[0-9]-[0-1][0-9]-[0-3][0-9])\b", query)
+    target_date = None
+    if iso_match:
+        target_date = iso_match.group(1)
+    else:
+        weekdays = {
+            "monday": 0, "mon": 0,
+            "tuesday": 1, "tue": 1,
+            "wednesday": 2, "wed": 2,
+            "thursday": 3, "thu": 3,
+            "friday": 4, "fri": 4,
+            "saturday": 5, "sat": 5,
+            "sunday": 6, "sun": 6,
+        }
+        found_day = None
+        for day_name, day_idx in weekdays.items():
+            if re.search(rf"\b{day_name}\b", q_lower):
+                found_day = day_idx
+                break
+                
+        is_next_week = "next week" in q_lower or "next" in q_lower
+        
+        if found_day is not None:
+            if is_next_week:
+                days_until_next_monday = (7 - ref_date.weekday())
+                if ref_date.weekday() >= 5:  # Weekend: push to full next week
+                    days_until_next_monday += 7
+                target_date = (ref_date + timedelta(days=days_until_next_monday + found_day)).isoformat()
+            else:
+                days_ahead = (found_day - ref_date.weekday()) % 7
+                if days_ahead == 0:
+                    days_ahead = 7
+                target_date = (ref_date + timedelta(days=days_ahead)).isoformat()
+        elif "tomorrow" in q_lower:
+            target_date = (ref_date + timedelta(days=1)).isoformat()
+        elif is_next_week:
+            days_until_next_monday = (7 - ref_date.weekday())
+            if ref_date.weekday() >= 5:
+                days_until_next_monday += 7
+            target_date = (ref_date + timedelta(days=days_until_next_monday + 1)).isoformat()  # Next Tuesday
+        else:
+            target_date = (ref_date + timedelta(days=7)).isoformat()
+
+    # 2. Extract Slot Time
+    target_time = None
+    time_match = re.search(r"\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\s*(am|pm)?\b", query, re.IGNORECASE)
+    if time_match:
+        hour = int(time_match.group(1))
+        minute = int(time_match.group(2))
+        meridiem = time_match.group(3).lower() if time_match.group(3) else None
+        if meridiem == "pm" and hour < 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        target_time = f"{hour:02d}:{minute:02d}"
+    else:
+        time_match2 = re.search(r"\b([1-9]|1[0-2])\s*(am|pm)\b", query, re.IGNORECASE)
+        if time_match2:
+            hour = int(time_match2.group(1))
+            meridiem = time_match2.group(2).lower()
+            if meridiem == "pm" and hour < 12:
+                hour += 12
+            elif meridiem == "am" and hour == 12:
+                hour = 0
+            target_time = f"{hour:02d}:00"
+
+    return target_date, target_time
 
 
 @dataclass
@@ -107,20 +189,22 @@ class MultiStepAgentPlanner:
                 elif "pediatric" in q_lower or "child" in q_lower:
                     dept = "pediatrics"
 
+                target_date, target_time = extract_appointment_datetime(sanitized_query)
+
                 planned_tools.append({
                     "tool": "search_approved_documents",
                     "args": {"query": f"{dept} appointment booking cancellation policy", "top_k": 2},
                 })
                 planned_tools.append({
                     "tool": "check_appointment_availability",
-                    "args": {"department": dept, "date": "2026-11-20"},
+                    "args": {"department": dept, "date": target_date},
                 })
                 planned_tools.append({
                     "tool": "schedule_mock_appointment",
                     "args": {
                         "department": dept,
-                        "date": "2026-11-20",
-                        "slot_time": "10:30",
+                        "date": target_date,
+                        "slot_time": target_time or "11:00",
                         "reason": "Consultation",
                         "human_confirmation": human_confirmed,
                         "idempotency_key": idempotency_key or f"idem-{workflow_id}",
@@ -227,6 +311,16 @@ class MultiStepAgentPlanner:
                 latency_ms=exec_latency,
             ))
             step_counter += 1
+
+            # If availability check succeeded, dynamically reconcile available slots for write tool
+            if tool_name == "check_appointment_availability" and exec_res.status == "success":
+                avail_slots = exec_res.result_data.get("available_slots", [])
+                if avail_slots:
+                    for downstream in planned_tools:
+                        if downstream["tool"] == "schedule_mock_appointment":
+                            cur_slot = downstream.get("args", {}).get("slot_time")
+                            if cur_slot not in avail_slots:
+                                downstream["args"]["slot_time"] = avail_slots[0]
 
             # Handle Human Confirmation Gate (Write Tool)
             if exec_res.status == "confirmation_required":

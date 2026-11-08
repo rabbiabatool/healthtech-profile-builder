@@ -211,6 +211,32 @@ def test_multistep_workflow_scheduling_flow(auth_user):
     assert "Booking confirmed" in confirmed_state.final_response["answer"]
 
 
+def test_multistep_workflow_dynamic_datetime_extraction(auth_user):
+    planner = MultiStepAgentPlanner(max_steps=5)
+    query = "I want to book an appointment with cardiology next week on Tuesday 11:00 am"
+    state = planner.execute_workflow(
+        user_query=query,
+        user=auth_user,
+        human_confirmed=False,
+    )
+    assert state.requires_human_confirmation is True
+    assert state.pending_draft is not None
+    assert state.pending_draft["department"] == "cardiology"
+    assert state.pending_draft["date"] == "2026-11-17"  # Next Tuesday
+    assert state.pending_draft["slot_time"] == "11:00"  # Exact requested & available slot
+    assert "11:00" in state.confirmation_prompt
+
+    # When confirmed
+    confirmed = planner.execute_workflow(
+        user_query=query,
+        user=auth_user,
+        human_confirmed=True,
+        idempotency_key=state.pending_draft["idempotency_key"],
+    )
+    assert confirmed.is_completed is True
+    assert "2026-11-17 at 11:00" in confirmed.final_response["answer"]
+
+
 def test_multistep_workflow_ml_persona_flow(auth_user):
     planner = MultiStepAgentPlanner(max_steps=5)
     state = planner.execute_workflow(
