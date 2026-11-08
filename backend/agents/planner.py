@@ -103,6 +103,22 @@ def extract_appointment_datetime(query: str, ref_date: Optional[date] = None) ->
     return target_date, target_time
 
 
+def find_closest_slot(target_time: Optional[str], available_slots: List[str]) -> str:
+    """Finds the chronologically nearest slot among available slots for a target time."""
+    if not available_slots:
+        return "10:00"
+    if not target_time:
+        return available_slots[0]
+    try:
+        def to_minutes(t_str: str) -> int:
+            parts = t_str.strip().split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+        target_mins = to_minutes(target_time)
+        return min(available_slots, key=lambda s: abs(to_minutes(s) - target_mins))
+    except Exception:
+        return available_slots[0]
+
+
 @dataclass
 class WorkflowStepTrace:
     step_number: int
@@ -144,7 +160,7 @@ class MultiStepAgentPlanner:
         idempotency_key: Optional[str] = None,
         force_tool_sequence: Optional[List[Dict[str, Any]]] = None,
     ) -> MultiStepWorkflowState:
-        workflow_id = f"wf-{int(time.time())}-{str(uuid.uuid4())[:6]}"
+        workflow_id = f"wf-{uuid.uuid4().hex[:12]}"
         sanitized_query, _ = redact_sensitive_data(user_query)
 
         state = MultiStepWorkflowState(
@@ -153,6 +169,11 @@ class MultiStepAgentPlanner:
             session_id=session_id,
             max_steps=self.max_steps,
         )
+
+        dept: Optional[str] = None
+        target_date: Optional[str] = None
+        target_time: Optional[str] = None
+        slot_reconciliation_note: Optional[str] = None
 
         # Step 0: Security & Safety Guard
         sec = check_prompt_security(sanitized_query)
@@ -316,22 +337,74 @@ class MultiStepAgentPlanner:
             if tool_name == "check_appointment_availability" and exec_res.status == "success":
                 avail_slots = exec_res.result_data.get("available_slots", [])
                 if avail_slots:
+                    dept_name = dept.replace("_", " ").title() if dept else "Clinic"
+                    if target_time:
+                        if target_time in avail_slots:
+                            chosen_slot = target_time
+                            slot_reconciliation_note = (
+                                f"Requested time {target_time} on {target_date} is confirmed available ({', '.join(avail_slots)})."
+                            )
+                        else:
+                            chosen_slot = find_closest_slot(target_time, avail_slots)
+                            slot_reconciliation_note = (
+                                f"Requested time {target_time} is NOT available for {dept_name} on {target_date}. "
+                                f"Available clinic slots: {', '.join(avail_slots)}. Selected nearest available slot at {chosen_slot}."
+                            )
+                    else:
+                        chosen_slot = avail_slots[0]
+                        slot_reconciliation_note = (
+                            f"Available slots for {dept_name} on {target_date}: {', '.join(avail_slots)}. Selected first available slot at {chosen_slot}."
+                        )
+
                     for downstream in planned_tools:
                         if downstream["tool"] == "schedule_mock_appointment":
-                            cur_slot = downstream.get("args", {}).get("slot_time")
-                            if cur_slot not in avail_slots:
-                                downstream["args"]["slot_time"] = avail_slots[0]
+                            downstream["args"]["slot_time"] = chosen_slot
+
+            tool_results_summary.append({
+                "tool": tool_name,
+                "status": exec_res.status,
+                "data": exec_res.result_data,
+            })
 
             # Handle Human Confirmation Gate (Write Tool)
             if exec_res.status == "confirmation_required":
                 state.requires_human_confirmation = True
-                state.confirmation_prompt = exec_res.result_data.get("prompt_message")
+                prompt_msg = exec_res.result_data.get("prompt_message")
                 state.pending_draft = exec_res.result_data.get("draft")
                 state.is_completed = False
+
+                synthesis_parts = []
+                for item in tool_results_summary:
+                    t = item["tool"]
+                    d = item["data"]
+                    if t == "search_approved_documents":
+                        count = d.get("count", 0)
+                        dept_name = dept.replace("_", " ").title() if dept else "Clinic"
+                        synthesis_parts.append(
+                            f"Policy Verification: Reviewed {dept_name} booking policy ({count} passages). "
+                            "Consultations adhere to designated clinical slots and require advance notice."
+                        )
+                    elif t == "check_appointment_availability":
+                        if slot_reconciliation_note:
+                            synthesis_parts.append(f"Availability Check: {slot_reconciliation_note}")
+                        else:
+                            slots = ", ".join(d.get("available_slots", []))
+                            synthesis_parts.append(f"Availability Check: Available slots: {slots}.")
+
+                if prompt_msg:
+                    synthesis_parts.append(prompt_msg)
+
+                combined_answer = "\n\n".join(synthesis_parts)
+
+                if slot_reconciliation_note and target_time and target_time not in (exec_res.result_data.get("draft", {}).get("slot_time") or ""):
+                    state.confirmation_prompt = f"Notice: {slot_reconciliation_note}\n\n{prompt_msg}"
+                else:
+                    state.confirmation_prompt = prompt_msg
+
                 state.final_response = {
                     "intent": "appointment_booking",
                     "status": "needs_confirmation",
-                    "answer": exec_res.result_data.get("prompt_message"),
+                    "answer": combined_answer,
                     "pending_draft": state.pending_draft,
                 }
                 return state
@@ -346,12 +419,6 @@ class MultiStepAgentPlanner:
                     details=f"Recovered from failed tool '{tool_name}': {exec_res.error}. Continuing workflow.",
                 ))
                 step_counter += 1
-
-            tool_results_summary.append({
-                "tool": tool_name,
-                "status": exec_res.status,
-                "data": exec_res.result_data,
-            })
 
         # Phase 5: Synthesis / Response Phase
         state.is_completed = True
@@ -368,10 +435,14 @@ class MultiStepAgentPlanner:
             d = item["data"]
             if t == "search_approved_documents":
                 count = d.get("count", 0)
-                answer_parts.append(f"Retrieved {count} policy passages.")
+                dept_name = dept.replace("_", " ").title() if dept else "Clinic"
+                answer_parts.append(f"Policy Verification: Reviewed {dept_name} booking policy ({count} passages).")
             elif t == "check_appointment_availability":
-                slots = ", ".join(d.get("available_slots", []))
-                answer_parts.append(f"Available slots for {d.get('department')}: {slots}.")
+                if slot_reconciliation_note:
+                    answer_parts.append(f"Availability Check: {slot_reconciliation_note}")
+                else:
+                    slots = ", ".join(d.get("available_slots", []))
+                    answer_parts.append(f"Available slots for {d.get('department')}: {slots}.")
             elif t == "schedule_mock_appointment":
                 answer_parts.append(f"Booking confirmed: {d.get('message')}")
             elif t == "request_supervised_prediction":
@@ -379,7 +450,7 @@ class MultiStepAgentPlanner:
             elif t == "retrieve_cluster_summaries":
                 answer_parts.append("Aggregated patient personas retrieved.")
 
-        final_answer = " ".join(answer_parts) if answer_parts else "Multi-step workflow completed."
+        final_answer = "\n\n".join(answer_parts) if answer_parts else "Multi-step workflow completed."
         state.final_response = {
             "workflow_id": workflow_id,
             "intent": "multi_tool_workflow",

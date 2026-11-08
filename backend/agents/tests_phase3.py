@@ -237,6 +237,45 @@ def test_multistep_workflow_dynamic_datetime_extraction(auth_user):
     assert "2026-11-17 at 11:00" in confirmed.final_response["answer"]
 
 
+def test_multistep_workflow_unavailable_slot_reconciliation(auth_user):
+    planner = MultiStepAgentPlanner(max_steps=5)
+    query = "I want to book an appointment with cardiology next week on Wednesday at 4:00 pm"
+    state = planner.execute_workflow(
+        user_query=query,
+        user=auth_user,
+        human_confirmed=False,
+    )
+    assert state.requires_human_confirmation is True
+    assert state.pending_draft is not None
+    assert state.pending_draft["department"] == "cardiology"
+    assert state.pending_draft["date"] == "2026-11-18"  # Next Wednesday
+    # 4:00 pm (16:00) is NOT available for cardiology (only 11:00 and 14:00)
+    # Planner MUST select the closest available slot (14:00)
+    assert state.pending_draft["slot_time"] == "14:00"
+    
+    # Must explain Policy Verification in the answer
+    assert "Policy Verification" in state.final_response["answer"]
+    # Must explicitly inform the user that 16:00 is NOT available and show available slots
+    assert "16:00 is NOT available" in state.final_response["answer"]
+    assert "11:00, 14:00" in state.final_response["answer"]
+    assert "14:00" in state.confirmation_prompt
+
+    # Idempotency key must NOT be redacted as a phone number
+    assert "[REDACTED_PHONE]" not in state.confirmation_prompt
+    assert "[REDACTED_PHONE]" not in state.workflow_id
+
+    # When confirmed
+    confirmed = planner.execute_workflow(
+        user_query=query,
+        user=auth_user,
+        human_confirmed=True,
+        idempotency_key=state.pending_draft["idempotency_key"],
+    )
+    assert confirmed.is_completed is True
+    assert "Booking confirmed" in confirmed.final_response["answer"]
+    assert "2026-11-18 at 14:00" in confirmed.final_response["answer"]
+
+
 def test_multistep_workflow_ml_persona_flow(auth_user):
     planner = MultiStepAgentPlanner(max_steps=5)
     state = planner.execute_workflow(

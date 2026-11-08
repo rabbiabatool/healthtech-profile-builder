@@ -355,7 +355,7 @@ class ScheduleMockAppointmentTool(BaseAgentTool):
             )
 
         # 5. Commit Authorized Write
-        booking_id = f"APPT-{int(time.time())}-{str(uuid.uuid4())[:6]}"
+        booking_id = f"APPT-{uuid.uuid4().hex[:10].upper()}"
         record = {
             "booking_id": booking_id,
             "department": department,
