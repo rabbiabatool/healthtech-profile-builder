@@ -138,3 +138,103 @@ def test_malformed_metadata_returns_503_not_500_and_recovers(api_client, user, l
     finally:
         meta_path.write_text(valid_content, encoding="utf-8")
         registry.clear_cache()
+
+
+def test_invalid_cutoff_and_threshold_metadata_returns_503_on_auth_api(api_client, user, login, csrf_header, model_ready, artifact_dir):
+    """Authenticated GET and POST regressions for string/null/boolean/non-finite/out-of-range/inverted cutoffs and threshold."""
+    login(api_client)
+    headers = csrf_header(api_client)
+    meta_path = Path(artifact_dir) / config.METADATA_FILENAME
+    valid_content = meta_path.read_text(encoding="utf-8")
+    valid_data = json.loads(valid_content)
+
+    try:
+        # String cutoff
+        bad_meta = dict(valid_data, risk_band_cutpoints={"HIGH": "oops", "MEDIUM": 0.2})
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+        assert api_client.get(MODEL_URL).status_code == 503
+        assert api_client.post(PREDICT_URL, VALID, format="json", **headers).status_code == 503
+
+        # Inverted cutoff (MEDIUM > HIGH)
+        bad_meta = dict(valid_data, risk_band_cutpoints={"HIGH": 0.2, "MEDIUM": 0.8})
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+        assert api_client.get(MODEL_URL).status_code == 503
+        assert api_client.post(PREDICT_URL, VALID, format="json", **headers).status_code == 503
+
+        # Boolean cutoff
+        bad_meta = dict(valid_data, risk_band_cutpoints={"HIGH": True, "MEDIUM": 0.2})
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+        assert api_client.get(MODEL_URL).status_code == 503
+        assert api_client.post(PREDICT_URL, VALID, format="json", **headers).status_code == 503
+
+        # String threshold
+        bad_meta = dict(valid_data, threshold="NaN")
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+        assert api_client.get(MODEL_URL).status_code == 503
+        assert api_client.post(PREDICT_URL, VALID, format="json", **headers).status_code == 503
+
+        # Schema version mismatch
+        bad_meta = dict(valid_data, schema_version="v2_invalid")
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+        assert api_client.get(MODEL_URL).status_code == 503
+        assert api_client.post(PREDICT_URL, VALID, format="json", **headers).status_code == 503
+
+    finally:
+        meta_path.write_text(valid_content, encoding="utf-8")
+        registry.clear_cache()
+
+
+def test_authenticated_fingerprint_cache_recovery_without_manual_cache_clearing(api_client, user, login, csrf_header, model_ready, artifact_dir):
+    """Prove automatic recovery on authenticated API via fingerprint cache invalidation with NO clear_cache calls."""
+    import os, time
+
+    login(api_client)
+    headers = csrf_header(api_client)
+    meta_path = Path(artifact_dir) / config.METADATA_FILENAME
+    valid_content = meta_path.read_text(encoding="utf-8")
+    valid_data = json.loads(valid_content)
+
+    try:
+        # Step 1: Warm cache
+        t0 = time.time()
+        os.utime(meta_path, (t0, t0))
+        warm_res = api_client.get(MODEL_URL)
+        assert warm_res.status_code == 200
+        warm_post = api_client.post(PREDICT_URL, VALID, format="json", **headers)
+        assert warm_post.status_code == 200
+
+        # Step 2: Corrupt with deterministic timestamp update (NO clear_cache)
+        t1 = t0 + 10.0
+        bad_meta = dict(valid_data, risk_band_cutpoints={"HIGH": "corrupt_val", "MEDIUM": 0.2})
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        os.utime(meta_path, (t1, t1))
+
+        corrupt_get = api_client.get(MODEL_URL)
+        assert corrupt_get.status_code == 503
+        assert "invalid risk_band_cutpoints" in corrupt_get.json().get("detail", "")
+
+        corrupt_post = api_client.post(PREDICT_URL, VALID, format="json", **headers)
+        assert corrupt_post.status_code == 503
+        assert "invalid risk_band_cutpoints" in corrupt_post.json().get("detail", "")
+
+        # Step 3: Restore with deterministic timestamp update (NO clear_cache)
+        t2 = t1 + 10.0
+        meta_path.write_text(valid_content, encoding="utf-8")
+        os.utime(meta_path, (t2, t2))
+
+        recovered_get = api_client.get(MODEL_URL)
+        assert recovered_get.status_code == 200
+        assert "input_schema" in recovered_get.json()
+
+        recovered_post = api_client.post(PREDICT_URL, VALID, format="json", **headers)
+        assert recovered_post.status_code == 200
+        assert "probability" in recovered_post.json()
+
+    finally:
+        meta_path.write_text(valid_content, encoding="utf-8")
+        registry.clear_cache()

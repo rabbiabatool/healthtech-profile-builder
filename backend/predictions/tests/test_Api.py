@@ -166,6 +166,141 @@ def test_malformed_metadata_gives_503_and_recovers(artifact_dir, monkeypatch, tm
     assert "probability" in recovery_predict.data
 
 
+def test_invalid_cutpoint_metadata_returns_503_on_get_and_post(artifact_dir, monkeypatch, tmp_path):
+    """Authenticated GET and POST regressions for string/null/boolean/non-finite/out-of-range/inverted cutoff values."""
+    import json, shutil
+    from mlcore import registry
+
+    target = tmp_path / "corrupt_cutpoints"
+    shutil.copytree(artifact_dir, target)
+    meta_path = target / config.METADATA_FILENAME
+    valid_data = json.loads(meta_path.read_text(encoding="utf-8"))
+
+    monkeypatch.setattr(config, "ARTIFACT_DIR", target)
+
+    invalid_cutpoints = [
+        {"HIGH": "oops", "MEDIUM": 0.2},
+        {"HIGH": None, "MEDIUM": 0.2},
+        {"HIGH": True, "MEDIUM": 0.2},
+        {"HIGH": 0.8, "MEDIUM": False},
+        {"HIGH": float("nan"), "MEDIUM": 0.2},
+        {"HIGH": 1.5, "MEDIUM": 0.2},
+        {"HIGH": 0.8, "MEDIUM": -0.1},
+        {"HIGH": 0.2, "MEDIUM": 0.8},  # Inverted (MEDIUM > HIGH)
+    ]
+
+    for bad_cuts in invalid_cutpoints:
+        bad_meta = dict(valid_data, risk_band_cutpoints=bad_cuts)
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+
+        get_res = _get_model_info()
+        assert get_res.status_code == 503
+        assert "invalid risk_band_cutpoints" in get_res.data["detail"]
+
+        post_res = _post(VALID)
+        assert post_res.status_code == 503
+        assert "invalid risk_band_cutpoints" in post_res.data["detail"]
+
+
+def test_invalid_threshold_and_schema_version_returns_503_on_get_and_post(artifact_dir, monkeypatch, tmp_path):
+    """Authenticated GET and POST regressions for string/null/boolean/non-finite/out-of-range threshold and schema mismatch."""
+    import json, shutil
+    from mlcore import registry
+
+    target = tmp_path / "corrupt_thresh"
+    shutil.copytree(artifact_dir, target)
+    meta_path = target / config.METADATA_FILENAME
+    valid_data = json.loads(meta_path.read_text(encoding="utf-8"))
+
+    monkeypatch.setattr(config, "ARTIFACT_DIR", target)
+
+    invalid_thresholds = ["NaN", "oops", None, True, False, float("nan"), -0.1, 1.2]
+    for bad_thresh in invalid_thresholds:
+        bad_meta = dict(valid_data, threshold=bad_thresh)
+        meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+        registry.clear_cache()
+
+        assert _get_model_info().status_code == 503
+        assert _post(VALID).status_code == 503
+
+    # Schema version mismatch
+    bad_meta = dict(valid_data, schema_version="wrong_v2")
+    meta_path.write_text(json.dumps(bad_meta), encoding="utf-8")
+    registry.clear_cache()
+
+    get_res = _get_model_info()
+    assert get_res.status_code == 503
+    assert "schema version" in get_res.data["detail"]
+
+    post_res = _post(VALID)
+    assert post_res.status_code == 503
+    assert "schema version" in post_res.data["detail"]
+
+
+def test_unusable_prediction_result_returns_503_on_post(model_ready, monkeypatch):
+    """Ensure the POST path handles an unusable prediction result as an unavailable-model response (503) rather than leaking 500."""
+    from mlcore import registry
+
+    def _broken_predict(*args, **kwargs):
+        raise registry.ModelUnavailable("The model produced a non-finite prediction result.")
+
+    monkeypatch.setattr(registry, "predict_one", _broken_predict)
+
+    response = _post(VALID)
+    assert response.status_code == 503
+    assert "non-finite prediction result" in response.data["detail"]
+
+
+def test_api_fingerprint_cache_recovery_without_manual_cache_clearing(artifact_dir, monkeypatch, tmp_path):
+    """Demonstrate warm-cache -> corrupt -> 503 -> restore -> 200 with NO manual cache clearing between requests."""
+    import json, os, shutil, time
+    from mlcore import registry
+
+    target = tmp_path / "fingerprint_recovery"
+    shutil.copytree(artifact_dir, target)
+    meta_path = target / config.METADATA_FILENAME
+    valid_text = meta_path.read_text(encoding="utf-8")
+
+    monkeypatch.setattr(config, "ARTIFACT_DIR", target)
+
+    # 1. Warm cache
+    t0 = time.time()
+    os.utime(meta_path, (t0, t0))
+    warm_get = _get_model_info()
+    assert warm_get.status_code == 200
+    warm_post = _post(VALID)
+    assert warm_post.status_code == 200
+
+    # 2. Corrupt metadata with advanced timestamp (NO clear_cache)
+    t1 = t0 + 10.0
+    bad_data = json.loads(valid_text)
+    bad_data["risk_band_cutpoints"]["HIGH"] = "not_a_number"
+    meta_path.write_text(json.dumps(bad_data), encoding="utf-8")
+    os.utime(meta_path, (t1, t1))
+
+    corrupt_get = _get_model_info()
+    assert corrupt_get.status_code == 503
+    assert "invalid risk_band_cutpoints" in corrupt_get.data["detail"]
+
+    corrupt_post = _post(VALID)
+    assert corrupt_post.status_code == 503
+    assert "invalid risk_band_cutpoints" in corrupt_post.data["detail"]
+
+    # 3. Restore valid metadata with another advanced timestamp (NO clear_cache)
+    t2 = t1 + 10.0
+    meta_path.write_text(valid_text, encoding="utf-8")
+    os.utime(meta_path, (t2, t2))
+
+    recovered_get = _get_model_info()
+    assert recovered_get.status_code == 200
+    assert "input_schema" in recovered_get.data
+
+    recovered_post = _post(VALID)
+    assert recovered_post.status_code == 200
+    assert "probability" in recovered_post.data
+
+
 def test_model_info_has_what_a_form_needs_and_hides_internals(model_ready):
     response = _get_model_info(role=MEMBER_ROLE)
     assert response.status_code == 200

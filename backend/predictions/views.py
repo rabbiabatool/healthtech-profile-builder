@@ -102,6 +102,9 @@ class NoShowPredictView(MemberMLBaseView):
         serializer.is_valid(raise_exception=True)
         try:
             loaded = registry.load_model()
+            result = registry.predict_one(loaded, serializer.validated_data)
         except registry.ModelUnavailable as error:
             return _unavailable(error)
-        return Response(registry.predict_one(loaded, serializer.validated_data))
+        except Exception as error:
+            return _unavailable(registry.ModelUnavailable(f"The model could not generate a usable prediction: {error}"))
+        return Response(result)
