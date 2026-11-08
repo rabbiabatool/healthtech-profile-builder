@@ -1,0 +1,29 @@
+.page { max-width: 62rem; margin: 0 auto; padding: 1rem; }
+.banner { border: 2px solid currentColor; border-left-width: 8px; padding: 0.75rem 1rem; margin: 1rem 0; }
+.presetRow { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0; }
+.form { margin: 1rem 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.field { display: flex; flex-direction: column; gap: 0.25rem; }
+.label { font-weight: 600; }
+.input { font: inherit; padding: 0.5rem; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; min-height: 2.75rem; }
+.checkbox { width: 1.5rem; height: 1.5rem; }
+.checkRow { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; font-weight: 600; }
+.hint { margin: 0; font-size: 0.9rem; opacity: 0.85; }
+.error { margin: 0; font-weight: 600; }
+.errorSummary { border: 2px solid currentColor; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+.button, .primary { font: inherit; padding: 0.6rem 1rem; border: 2px solid currentColor; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; min-height: 2.75rem; }
+.primary { font-weight: 700; }
+.primary:disabled { cursor: progress; opacity: 0.6; }
+.button:focus-visible, .primary:focus-visible, .input:focus-visible, .checkbox:focus-visible, .about summary:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+.card { border: 2px solid currentColor; border-radius: 6px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.card h2:focus { outline: none; }
+.bigNumber { font-size: 2rem; font-weight: 700; margin: 0.25rem 0; }
+.bandLine { margin: 0.5rem 0; }
+.warning { border: 1px dashed currentColor; padding: 0.5rem 1rem; margin: 1rem 0; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.5rem; margin: 1rem 0; }
+.facts dt { font-weight: 600; }
+.facts dd { margin: 0; }
+.disclaimer { font-style: italic; }
+.about { margin: 1.5rem 0; }
+.about summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; }

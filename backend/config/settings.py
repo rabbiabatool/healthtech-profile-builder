@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "audit",
     "drf_spectacular",
     "drf_spectacular_sidecar",
+    "predictions",
 ]
 
 MIDDLEWARE = [
