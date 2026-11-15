@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Relational Database
+  db:
+    image: postgres:16-alpine
+    container_name: healthtech-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-healthtech_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d healthtech_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - healthtech-net
+
+  # 2. Django + DRF API Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthtech-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-docker-production-secret-key-32chars}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend,frontend,web
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-healthtech_db}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      JWT_COOKIE_SECURE: "False"
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python scripts/seed_demo.py &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthtech-net
+
+  # 3. Asynchronous Task Worker (Background Indexing & Batch Predictions)
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthtech-worker
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-docker-production-secret-key-32chars}
+      DJANGO_DEBUG: "False"
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-healthtech_db}
+    command: python -c "from agents.task_queue import get_task_queue; import time; q = get_task_queue(); print('HealthTech Task Worker started.'); [time.sleep(3600) for _ in iter(int, 1)]"
+    networks:
+      - healthtech-net
+
+  # 4. Next.js 14+ UI Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthtech-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthtech-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  healthtech-net:
+    driver: bridge

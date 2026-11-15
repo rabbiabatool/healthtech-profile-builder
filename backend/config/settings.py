@@ -9,7 +9,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = list(set(env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"]) + ["testserver", "localhost", "127.0.0.1"]))
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -38,6 +38,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.StructuredLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -142,5 +143,40 @@ SPECTACULAR_SETTINGS = {
         "ActorRoleEnum": "audit.models.ActorRole",
         "OutcomeEnum": "audit.models.Outcome",
         "RoleEnum": "accounts.models.Role",
+    },
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+        },
+        "json": {
+            "format": "%(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "access_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "healthtech.access": {
+            "handlers": ["access_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }

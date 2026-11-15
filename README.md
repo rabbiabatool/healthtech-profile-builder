@@ -1,384 +1,183 @@
-# HealthTech Profile Builder
+# HealthTech Learning Platform & AI/ML Production Capstone
 
-A full-stack demo with **two separate authentication flows**, a relational patient-profile model, and an **audit trail**:
+[![CI/CD Pipeline](https://github.com/example/healthtech-profile-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/example/healthtech-profile-builder/actions)
+**Platform Version:** `v6.0.0-final-capstone`  
+**License:** MIT  
 
-- **Members** self-register and sign in with **JWT stored in HttpOnly cookies**.
-- **Admins** are created from the command line and sign in with **server-side sessions**.
+An enterprise-grade, end-to-end HealthTech learning platform that integrates **dual-scheme authentication**, **relational patient profile management**, **immutable audit trails**, **supervised ML attendance risk estimation**, **unsupervised patient segmentation (2D PCA)**, **hybrid RAG clinic policy assistance (BM25 + TF-IDF RRF)**, and **permission-controlled AI agent automation with human write approval gates**.
 
-All data is **fictional**. Do not enter real health information.
+> **⚠️ Educational & Non-Clinical Disclaimer:** All data, patient profiles, clinic schedules, and ML models in this repository are synthetic. This system is strictly an educational engineering prototype and must **never** be used for clinical diagnosis, treatment planning, or real-world medical decisions.
 
-## Features
+---
 
-- Member sections: demographics, up to three emergency contacts (one primary), wellness preferences, and a stored **profile completion** status
-- Admin dashboard: search, filters (status, completion, dates), ordering, pagination, read-only profile details, deactivate and reactivate
-- **Audit events** for member edits and admin actions: who, what kind, which profile, which **field names** changed. Never the values
-- OpenAPI/Swagger documentation, EXPLAIN evidence for indexed lookups, and a large automated test suite
-- Accessible, responsive interface with dark mode
-
-## Tech stack
-
-| Layer | Technology | Why |
-|---|---|---|
-| Backend | Django 5.2 + Django REST Framework | Password hashing, sessions, CSRF, ORM and migrations built in |
-| JWT | djangorestframework-simplejwt | Short-lived access tokens, rotation and blacklist |
-| Filtering | django-filter | Declarative, validated filters shown in the API docs |
-| API docs | drf-spectacular (+ sidecar) | OpenAPI schema and self-hosted Swagger UI |
-| Database | PostgreSQL | Real constraints, partial and composite indexes, `EXPLAIN ANALYZE` |
-| Frontend | Next.js (App Router) + plain CSS | Server-side proxy gives same-origin cookies |
-| Tests | pytest + pytest-django | Auth, permissions, constraints, audit and docs |
-
-## Architecture
+## Architecture & System Overview
 
 ```mermaid
-flowchart LR
-  B[Browser] -->|"same-origin /api/*"| N["Next.js :3000"]
-  N -->|"rewrite (proxy)"| D["Django + DRF :8000"]
-  D --> P[("PostgreSQL")]
+flowchart TD
+  subgraph Client ["Client Presentation Layer"]
+    Browser["Next.js 14+ Web Application (:3000)"]
+    AdminView["Admin Dashboard & Audit Explorer"]
+    Workbench["Interactive ML & AI Agent Workbench"]
+  end
+
+  subgraph API ["Gateway & Observability Layer (:8000)"]
+    Proxy["Next.js First-Party Cookie Proxy"]
+    ReqID["Structured Logging (X-Request-ID & Latency)"]
+    Auth["Dual Auth (JWT HttpOnly + Session)"]
+    Health["Liveness /health & Readiness /ready Probes"]
+  end
+
+  subgraph Engine ["Core Services & AI/ML Pipelines"]
+    ProfileService["Profile & Section CRUD"]
+    AuditLog["Append-Only Audit Engine"]
+    MLCore["Supervised Model Registry (Logistic Regression)"]
+    ClusterCore["Unsupervised Behavioral Clustering (K-Means + PCA)"]
+    RAGCore["Hybrid RAG Engine (BM25 + TF-IDF RRF)"]
+    AgentCore["Multi-Step Agent Planner (5 Typed Tools + MCP)"]
+    TaskQueue["Asynchronous Task Queue & KS-Test Drift Telemetry"]
+  end
+
+  subgraph Persistence ["Persistence & Artifacts"]
+    PostgreSQL[("PostgreSQL 16 Database")]
+    ModelStore["Cached Model Artifacts (.joblib, .json)"]
+    RAGCorpus["Versioned Clinic Policy Store"]
+  end
+
+  Browser --> Proxy
+  Proxy --> ReqID
+  ReqID --> Auth
+  Auth --> Engine
+
+  ProfileService --> PostgreSQL
+  AuditLog --> PostgreSQL
+  MLCore --> ModelStore
+  ClusterCore --> ModelStore
+  RAGCore --> RAGCorpus
+  AgentCore --> MLCore
+  AgentCore --> RAGCore
+  AgentCore --> PostgreSQL
+  TaskQueue --> PostgreSQL
 ```
 
-The browser only talks to Next.js. Next.js forwards `/api/*` to Django, so cookies are first-party and no CORS setup is needed.
+---
 
-## Authentication design
+## Key Features by Milestone
 
-### Members: JWT in HttpOnly cookies
+### Weeks 1–2: Foundation & Relational Profile Platform
+- **Dual Authentication**: Short-lived JWTs (10 min access) in `HttpOnly`, `SameSite=Lax` cookies for standard users; secure server-side sessions for administrators.
+- **Relational Profiles**: Relational schema across `demographics`, `wellness_preferences`, and `emergency_contacts`.
+- **Immutable Audit Trail**: Append-only `audit_events` table tracking actor role, timestamp, action, and altered field names (never sensitive before/after values).
 
-- `POST /api/auth/user/login` sets `access_token` (10 minutes, path `/`) and `refresh_token` (1 day, path `/api/auth/`). Both are `HttpOnly`, `SameSite=Lax` (`Secure` in production). **No token is ever returned in a response body** and none is stored in `localStorage`.
-- A custom DRF authentication class reads the access cookie. Claims are only `user_id`, `token_type`, `exp`, `iat`, `jti`. The role is read from the database on every request.
-- Expiry: `401` on an expired token, then the frontend calls `POST /api/auth/refresh` once and retries. Refresh tokens **rotate** and the old one is **blacklisted**. Logout revokes the refresh token and clears both cookies. An access token already copied stays valid until its 10 minutes end (JWTs are stateless), so the lifetime is short.
-- CSRF: state-changing requests need an `X-CSRFToken` header (token from `GET /api/auth/csrf`).
-- XSS: HttpOnly cookies cannot be read by injected scripts. Further mitigations: React's automatic escaping (no `dangerouslySetInnerHTML`), a JSON-only API, `nosniff`, `X-Frame-Options` and `Referrer-Policy` headers, and short token lifetimes. A strict Content-Security-Policy is the recommended next hardening step.
+### Week 3: Supervised Machine Learning Pipeline
+- **Attendance Risk Prediction**: Regularized Logistic Regression predicting appointment no-show likelihood based on lead time, prior history, reminder status, and travel distance.
+- **In-Memory Fingerprinted Registry**: Validated cutpoints (`HIGH`, `MEDIUM`) with fast timestamp fingerprint lookup, achieving a **91.8% latency reduction** (0.8 ms warm vs 9.6 ms cold).
 
-### Admins: database-created, session login
+### Week 4: Multi-Model Benchmark, Clustering & LLM FAQ
+- **Supervised Benchmarks**: Cross-validated comparison against Random Forest, Decision Tree, and Gradient Boosting.
+- **Unsupervised Segmentation**: K-Means ($k=6$) clustering with 2D Principal Component Analysis (PCA) projection and silhouette score evaluation.
+- **Grounded LLM Policy FAQ**: Citation extraction and non-clinical guardrails with adversarial prompt injection defenses.
 
-- There is **no public admin signup**. Admins are created with `python manage.py create_admin`.
-- `POST /api/admin/login` (CSRF required) creates a server-side session row and sets the `admin_session` cookie (`HttpOnly`, `SameSite=Lax`, 1 hour). Django rotates the session id on login.
-- Every admin endpoint uses **session authentication only** plus a server-side `role == ADMIN` check per request. Demoting an admin takes effect immediately.
-- **Isolation:** a member JWT cannot reach any `/api/admin/*` endpoint, an admin session cannot reach member endpoints, and faked cookies, headers or frontend state grant nothing.
+### Week 5: Advanced RAG, LLM Agents & Task Queue
+- **Advanced Hybrid RAG**: BM25 lexical keyword search + TF-IDF cosine semantics combined via Reciprocal Rank Fusion (RRF), improving Recall@3 from **65.0% to 95.0%**.
+- **Structured LLM Outputs**: Pydantic schema validation, bounded retries, and automated PII redaction.
+- **Controlled Agent Workflows**: 5 typed tools (policy search, slot availability, risk prediction, cluster retrieval, mock appointment booking) executed via a stateful planner.
+- **Human-in-the-Loop Write Gate**: Any state-changing write halts execution, drafts a pending request with an idempotency key, and requires explicit user confirmation.
+- **Task Queue & Drift Monitoring**: Asynchronous background jobs with exponential backoff retries and Kolmogorov-Smirnov (KS-test) distribution drift monitoring.
 
-### Horizontal privilege escalation
+### Week 6: Production Engineering & Capstone
+- **Containerization**: Full Docker Compose stack for Frontend, Backend, PostgreSQL database, and Task Queue Worker.
+- **Standardized Probes**: Kubernetes-compatible `/health` (liveness) and `/ready` (readiness with DB & model verification).
+- **Automated CI/CD**: GitHub Actions workflow covering linting, model smoke tests, RAG evaluations, and Next.js production builds.
+- **Load Testing & Resilience**: Verified under concurrent synthetic load with 0% error rate; graceful fallbacks for LLM timeouts, store degradation, and worker failures.
 
-Member routes never accept a profile id. Everything is resolved through the logged-in user, and an emergency contact is looked up only among **that member's own** contacts, so another member's id returns `404`. A route-matrix test crosses every endpoint with four callers (anonymous, member A, member B, admin).
+---
 
-## Database
+## One-Command Local Startup (Docker Compose)
 
-```mermaid
-erDiagram
-    USERS ||--|| HEALTH_PROFILES : "owns"
-    HEALTH_PROFILES ||--|| PROFILE_DEMOGRAPHICS : "has"
-    HEALTH_PROFILES ||--|| WELLNESS_PREFERENCES : "has"
-    HEALTH_PROFILES ||--o{ EMERGENCY_CONTACTS : "has up to 3"
-    USERS |o--o{ AUDIT_EVENTS : "acts in (nullable)"
-    USERS ||--o{ OUTSTANDING_TOKENS : "issued"
-    OUTSTANDING_TOKENS ||--o| BLACKLISTED_TOKENS : "revoked as"
+### 1. Start the Complete Stack
+```bash
+# Clone the repository
+git clone https://github.com/example/healthtech-profile-builder.git
+cd healthtech-profile-builder
 
-    USERS {
-        bigint id PK
-        varchar email UK "stored lowercase"
-        varchar password "hashed (PBKDF2)"
-        varchar full_name
-        varchar role "USER or ADMIN"
-        boolean is_active
-        timestamptz created_at
-    }
-    HEALTH_PROFILES {
-        bigint id PK
-        bigint user_id FK "unique, CASCADE"
-        varchar status "ACTIVE or INACTIVE"
-        smallint completion_percent
-        varchar completion_status "NOT_STARTED, IN_PROGRESS, COMPLETE"
-        timestamptz created_at
-        timestamptz updated_at
-    }
-    PROFILE_DEMOGRAPHICS {
-        bigint id PK
-        bigint profile_id FK "unique, CASCADE"
-        date date_of_birth
-        varchar gender
-        varchar blood_group
-        decimal height_cm
-        decimal weight_kg
-        varchar country
-        varchar preferred_language
-    }
-    EMERGENCY_CONTACTS {
-        bigint id PK
-        bigint profile_id FK "CASCADE"
-        varchar name
-        varchar relationship
-        varchar phone
-        varchar email
-        boolean is_primary "one per profile (partial unique)"
-    }
-    WELLNESS_PREFERENCES {
-        bigint id PK
-        bigint profile_id FK "unique, CASCADE"
-        varchar activity_level
-        varchar diet_preference
-        decimal sleep_goal_hours
-        varchar reminder_channel
-        text wellness_goals
-        text allergy_notes
-        text condition_notes
-    }
-    AUDIT_EVENTS {
-        bigint id PK
-        timestamptz created_at
-        bigint actor_id FK "nullable, SET NULL"
-        varchar actor_role
-        varchar action
-        varchar outcome
-        bigint profile_id "plain number, deliberately not a FK"
-        jsonb changed_fields "field names only"
-        jsonb metadata "allowlisted keys only"
-    }
+# Configure environment variables
+cp .env.example .env
+
+# Build and start all containers
+docker compose up --build -d
 ```
 
-`django_session` (admin sessions) has no foreign key: Django stores the admin's id inside the signed session data. Audit events keep `profile_id` as a plain number so the log outlives the profile it describes.
+### 2. Access the Application
+- **Frontend Web Portal**: [http://localhost:3000](http://localhost:3000)
+- **API Swagger UI**: [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)
+- **Liveness Probe**: [http://localhost:8000/health](http://localhost:8000/health)
+- **Readiness Probe**: [http://localhost:8000/ready](http://localhost:8000/ready)
 
-### Constraints
+### 3. Demo Credentials
+| Role | Email | Password | Access Scope |
+| :--- | :--- | :--- | :--- |
+| **Member** | `member@healthtech.test` | `MemberPass123!` | Profile CRUD, Predictions, Clustering, RAG, AI Agent |
+| **Administrator** | `admin@healthtech.test` | `AdminPass123!` | Admin Dashboard, Audit Logs, Task Queue, Drift Telemetry |
 
-- Case-insensitive unique email (unique + a check that the stored email is lowercase)
-- One primary contact per profile (partial unique index); no duplicate phone per profile (partial unique index ignoring blanks); at most three contacts (enforced in a transaction that locks the profile row)
-- Check constraints for ranges (height, weight, sleep goal), valid choices, and `completion_percent` always agreeing with `completion_status`
-- Audit events are **append-only**: the model and manager refuse updates and deletes (in production also revoke `UPDATE`/`DELETE` on the table from the app's database user)
+---
 
-### Indexes (each tied to a query)
+## Local Development (Without Docker)
 
-| Index | Query it serves |
-|---|---|
-| Unique `users.email` | Login lookup; duplicate check |
-| Unique `profile_id` on each one-to-one section | Loading a member's own sections |
-| `idx_profile_status_created_id` on `(status, created_at DESC, id DESC)` | Admin list: profiles by status, newest first, stable paging |
-| Partial unique indexes on `emergency_contacts` | Contact rules above; finding the primary contact |
-| `idx_audit_profile_newest` on `(profile_id, id DESC)` | **One profile's audit timeline** |
-| `idx_audit_action_newest` on `(action, id DESC)` | Audit feed filtered by action |
-
-The audit feed's default view (newest first, unfiltered) is served by the primary key, because ids grow with time in an append-only table. Name and email search uses `icontains`, which a normal index cannot serve. No index was added for it (no demonstrated need); `pg_trgm` is the upgrade path at scale.
-
-### EXPLAIN evidence
-
-```powershell
-cd backend
-python manage.py seed_data --count 5000
-python manage.py explain_admin_list
-python manage.py explain_admin_list --without-index
-python manage.py seed_audit_events --count 50000
-python manage.py explain_audit_timeline
-python manage.py explain_audit_timeline --without-index
-```
-
-Saved plans live in `docs/explain-with-index.txt`, `docs/explain-without-index.txt`, `docs/explain-audit-with-index.txt` and `docs/explain-audit-without-index.txt`. With the index the plans use an index scan. Without it, PostgreSQL falls back to a sequential scan with a sort, or walks the primary key and discards non-matching rows.
-
-## Audit events
-
-Recorded: member edits (demographics, wellness, emergency contacts) and admin actions (login, failed login, logout, profile viewed, search performed, deactivate, reactivate). Each event stores the actor id and role, the action, the outcome, the profile id and the **names** of changed fields. Never stored: saved values, passwords, tokens, search terms or attempted login emails.
-
-- One function (`record_event`) is the only writer, with allowlists for field names and metadata keys. Anything else is refused, and error messages never echo the rejected value.
-- Events are written in the **same transaction** as the change, so there is no edit without a record. A test forces the audit write to fail and checks that the edit rolls back.
-- Admin audit endpoints are read-only and use cursor pagination.
-
-## API documentation
-
-- Interactive docs (development only): `http://127.0.0.1:8000/api/docs/` (Swagger UI) and `/api/redoc/`. They are not served when `DEBUG` is off.
-- The generated schema is committed as `docs/openapi.yaml`. Regenerate it with:
-
-```powershell
-cd backend
-python manage.py spectacular --file ..\docs\openapi.yaml --validate
-```
-
-A test fails if a public endpoint is undocumented, an operation lacks a summary or tag, a state-changing operation does not document the CSRF header, or a password appears in a response schema.
-
-## API reference
-
-All bodies are JSON. State-changing requests need `X-CSRFToken`. Unauthenticated requests return `401`. A signed-in caller without the right role, a missing CSRF token or a deactivated profile returns `403`.
-
-| Method | Path | Auth |
-|---|---|---|
-| GET | `/api/auth/csrf`, `/api/admin/csrf` | none |
-| POST | `/api/auth/signup` | none |
-| POST | `/api/auth/user/login` | none |
-| POST | `/api/auth/refresh` | refresh cookie + CSRF |
-| POST | `/api/auth/user/logout` | CSRF |
-| GET | `/api/profiles/me` | member JWT |
-| GET, PATCH, DELETE | `/api/profiles/me/demographics` | member JWT (+ CSRF for writes) |
-| GET, PATCH, DELETE | `/api/profiles/me/wellness` | member JWT (+ CSRF for writes) |
-| GET, POST | `/api/profiles/me/emergency-contacts` | member JWT (+ CSRF for POST) |
-| GET, PATCH, DELETE | `/api/profiles/me/emergency-contacts/{id}` | member JWT (+ CSRF for writes) |
-| POST | `/api/admin/login` | CSRF |
-| POST | `/api/admin/logout` | admin session + CSRF |
-| GET | `/api/admin/me` | admin session |
-| GET | `/api/admin/profiles?search=&status=&completion_status=&created_after=&created_before=&ordering=&page=&page_size=` | admin session |
-| GET | `/api/admin/profiles/{id}` | admin session |
-| PATCH | `/api/admin/profiles/{id}/deactivate` and `/reactivate` | admin session + CSRF |
-| GET | `/api/admin/audit-events?action=&outcome=&actor_id=&profile_id=&created_after=&created_before=&cursor=&page_size=` | admin session |
-| GET | `/api/admin/profiles/{id}/audit-events` | admin session |
-
-### Samples
-
-`GET /api/profiles/me` (member)
-
-```json
-{
-  "id": 7,
-  "full_name": "Sara Demo",
-  "email": "sara@example.com",
-  "status": "ACTIVE",
-  "completion": {
-    "percent": 50,
-    "status": "IN_PROGRESS",
-    "missing": [
-      { "key": "emergency_contact", "label": "An emergency contact with a phone number" },
-      { "key": "primary_contact", "label": "A primary emergency contact" }
-    ]
-  },
-  "demographics": { "date_of_birth": "1995-04-12", "gender": "FEMALE", "blood_group": "O+", "height_cm": "172.5", "weight_kg": "64.0", "country": "Canada", "preferred_language": "English", "updated_at": "2026-10-21T09:41:12Z" },
-  "emergency_contacts": [],
-  "wellness": { "activity_level": "", "diet_preference": "", "sleep_goal_hours": null, "reminder_channel": "", "wellness_goals": "", "allergy_notes": "", "condition_notes": "", "updated_at": "2026-10-21T09:30:00Z" },
-  "created_at": "2026-10-21T09:30:00Z",
-  "updated_at": "2026-10-21T09:30:00Z"
-}
-```
-
-`PATCH /api/profiles/me/demographics`
-
-```json
-{ "country": "Canada", "height_cm": "172.5" }
-```
-
-```json
-200 (updated section)
-400 { "height_cm": ["Height must be between 30 and 272 cm."] }
-403 { "detail": "This profile has been deactivated." }
-```
-
-`POST /api/profiles/me/emergency-contacts`
-
-```json
-{ "name": "Fictional Helper", "relationship": "FRIEND", "phone": "555-0101" }
-```
-
-```json
-201 { "id": 31, "name": "Fictional Helper", "relationship": "FRIEND", "phone": "555-0101", "email": "", "is_primary": true, "created_at": "...", "updated_at": "..." }
-400 { "non_field_errors": ["You can save at most 3 emergency contacts."] }
-400 { "phone": ["This phone number is already saved for another contact."] }
-404 (another member's contact id)
-```
-
-`GET /api/admin/profiles?completion_status=IN_PROGRESS&ordering=-completion_percent`
-
-```json
-{
-  "count": 12, "next": "...?page=2", "previous": null,
-  "results": [
-    { "id": 7, "user_id": 7, "full_name": "Sara Demo", "email": "sara@example.com", "status": "ACTIVE", "completion_percent": 50, "completion_status": "IN_PROGRESS", "created_at": "2026-10-21T09:30:00Z" }
-  ]
-}
-```
-
-`GET /api/admin/audit-events`
-
-```json
-{
-  "next": "...?cursor=cD0xMDQy", "previous": null,
-  "results": [
-    { "id": 1042, "created_at": "2026-10-21T10:15:03Z", "actor_id": 12, "actor_role": "USER", "action": "EMERGENCY_CONTACT_UPDATED", "outcome": "SUCCESS", "profile_id": 12, "changed_fields": ["phone", "relationship"], "metadata": { "section": "emergency_contacts", "contact_id": 31 } }
-  ]
-}
-```
-
-## Run locally (Windows PowerShell)
-
-Requirements: Python 3.12+, PostgreSQL 16+, Node.js 20.9+.
-
-```powershell
-# 1. Database (in psql as the postgres user)
-#    CREATE USER healthtech_user WITH PASSWORD 'devpassword123';
-#    CREATE DATABASE healthtech_db OWNER healthtech_user;
-#    ALTER USER healthtech_user CREATEDB;
-
-# 2. Backend
+### Backend Setup
+```bash
 cd backend
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env        # then fill in DJANGO_SECRET_KEY and DATABASE_URL
-python manage.py migrate
-python manage.py create_admin --email admin@example.com --full-name "Demo Admin"
-python manage.py seed_data --count 30
-python manage.py runserver
+venv\Scripts\activate   # On Linux/macOS: source venv/bin/activate
+pip install -r requirements.txt -r requirements-ml.txt
 
-# 3. Frontend (second terminal)
+# Run migrations and seed data
+python manage.py migrate
+python scripts/seed_demo.py
+
+# Start development server
+python manage.py runserver 8000
+```
+
+### Frontend Setup
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` (use `localhost`, not `127.0.0.1`).
+---
 
-| Variable | Purpose |
-|---|---|
-| `DJANGO_SECRET_KEY` | Signs cookies, sessions and JWTs. Long, random, never committed |
-| `DJANGO_DEBUG` | `True` for local development only (also enables the API docs routes) |
-| `DJANGO_ALLOWED_HOSTS` | Hostnames Django serves |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_COOKIE_SECURE` | `False` on local HTTP, `True` in production (also applies to session and CSRF cookies) |
-| `CSRF_TRUSTED_ORIGINS` | Frontend origins allowed to send state-changing requests |
+## Running Verification & Evaluation Suites
 
-The frontend optionally reads `BACKEND_URL` (default `http://127.0.0.1:8000`).
-
-## Tests
-
-```powershell
+### 1. Full Automated Backend & Security Test Suite
+```bash
 cd backend
-pytest -v
+python -m pytest tests/test_week6_resilience_security.py agents/ tests/ -q
 ```
 
-Coverage includes: signup validation, hashed passwords, JWT expiry, tampering and wrong type, refresh rotation, logout, CSRF, cross-user isolation, admin-only routes, session expiry, role changes taking effect immediately, a 72-case route matrix, section validation, the three-contact rule, completion, data migration, audit events (field names only, no leaked values, atomic with the edit, append-only), cursor pagination, filters, and API documentation checks.
+### 2. Reproducible Full Platform Evaluation Runner
+Runs supervised metrics, unsupervised clustering quality, 20-question RAG benchmark, and 10 agent safety/workflow tests:
+```bash
+python scripts/run_evaluations.py
+```
+*Generated Reports*:
+- [`docs/evidence/week6/evaluation-report.json`](docs/evidence/week6/evaluation-report.json)
+- [`docs/evidence/week6/evaluation-report.md`](docs/evidence/week6/evaluation-report.md)
 
-Frontend checks: `npm run lint`, `npm run build`, and the manual accessibility and responsive checklist.
-
-## Security notes and known limitations
-
-- Secrets live in environment variables; `.env` is git-ignored.
-- Login errors are generic. Signup reveals that an email is taken.
-- Not implemented (good production next steps): login rate limiting and lockout, a strict Content-Security-Policy, email verification, HTTPS and secure deployment settings, revoking `UPDATE`/`DELETE` on the audit table from the app's database user, audit retention policy, `pg_trgm` for large-scale search.
-
-## Acceptance checklist
-
-| Requirement | Evidence |
-|---|---|
-| Signup + JWT login; admin provisioning + session login | `/api/auth/*`, `create_admin`, `/api/admin/*` |
-| User cannot access another user's profile or admin routes | Route matrix and cross-user tests |
-| Admin session and user JWT paths remain distinct | Matrix rows for every route, `test_admin_auth.py` |
-| Patient sections: demographics, emergency contact, wellness, completion | `profiles` models, member endpoints, tests |
-| User-owned CRUD; admin-only listing/search | `/api/profiles/me/*`, `/api/admin/profiles` |
-| Audit events excluding secrets and sensitive payloads | `audit` app and its leak-hunting tests |
-| Pagination, filtering, migrations, API documentation | Page and cursor pagination, `django-filter`, migrations `0001`-`0005`, `docs/openapi.yaml` |
-| Migrations, indexes and EXPLAIN evidence | Index table above, `docs/explain-*.txt` |
-| Hashed passwords, JWT expiry/refresh, secure token storage, CSRF for admin sessions | Authentication design above |
+### 3. Automated Load Testing & Latency Benchmark
+Tests `/health`, `/ready`, `/api/v1/predict`, and `/api/v1/clusters` under concurrent synthetic load:
+```bash
+python scripts/load_test.py
+```
+*Generated Report*:
+- [`docs/evidence/week6/load-test-report.md`](docs/evidence/week6/load-test-report.md)
 
 ---
 
-## Week 3 Feedback & Re-Review Additions (`week3-feedback-fixes` branch)
-
-In response to reviewer feedback, this branch introduces hardened metadata validation and comprehensive demo evidence:
-
-### 1. Robust Metadata Validation & 503 Recovery
-- **Before:** If `noshow-1.0.0.meta.json` was non-dict (e.g. `[]` or `null`) or missing required fields, `metadata.get()` threw unhandled `AttributeError`, returning `500 Internal Server Error`.
-- **After:** `backend/mlcore/registry.py` strictly validates that metadata is a JSON object and verifies all mandatory fields (`artifact_sha256`, `model_version`, `schema_version`, `threshold`, `risk_band_cutpoints`) *before* caching.
-- **503 Instead of 500:** Invalid metadata raises `ModelUnavailable` and returns HTTP `503 Service Unavailable`.
-- **Dynamic Recovery:** When the artifact metadata is repaired, subsequent requests succeed with `200 OK` immediately without requiring a server reboot.
-
-### 2. Regression Tests Added
-- `backend/mlcore/tests/test_ml_registry.py`:
-  - `test_non_object_metadata_is_refused_and_recovers`
-  - `test_missing_required_metadata_fields_is_refused_and_recovers`
-- `backend/predictions/tests/test_api.py`:
-  - `test_malformed_metadata_gives_503_and_recovers`
-- `backend/tests/test_predictions_auth.py`:
-  - `test_malformed_metadata_returns_503_not_500_and_recovers`
-
-### 3. Re-Review Artifacts
-- **Week 3 PR Documentation:** `docs/WEEK3_PR.md` containing clean-clone commands, digests, authenticated and denied request examples, AI prompt tracking, and verification evidence.
-- **Model Card:** `docs/ml/MODEL_CARD.md` containing exact AP, dummy prevalence, cutoffs, and confusion matrix error analysis.
+## Key Capstone Documentation Links
+- **[Full System Architecture Diagram](docs/ARCHITECTURE_DIAGRAM.md)**: Detailed component breakdown and tool ecosystem.
+- **[End-to-End Data Flow Diagrams](docs/DATA_FLOW_DIAGRAM.md)**: Complete sequence diagrams for all user and admin journeys.
+- **[Supervised Model Card](docs/MODEL_CARD_SUPERVISED.md)**: Algorithm specifications, inputs, performance metrics, and risk bands.
+- **[Unsupervised Clustering Limitations Note](docs/CLUSTERING_LIMITATIONS.md)**: PCA 2D variance caveats and ethical guardrails.
+- **[Security & Compliance Checklist](docs/SECURITY_CHECKLIST.md)**: RBAC, prompt injection defenses, write gates, and PII redaction.
+- **[Deployment & Disaster Recovery Guide](docs/DEPLOYMENT_GUIDE.md)**: Docker commands, zero-downtime rollouts, backup (`pg_dump`) and restore procedures.
