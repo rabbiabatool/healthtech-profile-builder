@@ -5,7 +5,6 @@ and system status checks with database and ML model verification.
 """
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
 
 from django.db import connection

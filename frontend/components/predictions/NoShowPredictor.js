@@ -249,9 +249,10 @@ export default function NoShowPredictor({ mode = "member" }) {
 
       {state === "ready" && (
         <>
-          <nav className={styles.tabsContainer} aria-label="Workbench sections">
+          <nav className={styles.tabsContainer} role="tablist" aria-label="Workbench sections">
             <button
               type="button"
+              role="tab"
               className={`${styles.tab} ${activeTab === "predict" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("predict")}
               aria-selected={activeTab === "predict"}
@@ -260,6 +261,7 @@ export default function NoShowPredictor({ mode = "member" }) {
             </button>
             <button
               type="button"
+              role="tab"
               className={`${styles.tab} ${activeTab === "supervised" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("supervised")}
               aria-selected={activeTab === "supervised"}
@@ -268,6 +270,7 @@ export default function NoShowPredictor({ mode = "member" }) {
             </button>
             <button
               type="button"
+              role="tab"
               className={`${styles.tab} ${activeTab === "clustering" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("clustering")}
               aria-selected={activeTab === "clustering"}
@@ -276,6 +279,7 @@ export default function NoShowPredictor({ mode = "member" }) {
             </button>
             <button
               type="button"
+              role="tab"
               className={`${styles.tab} ${activeTab === "faq" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("faq")}
               aria-selected={activeTab === "faq"}
@@ -284,6 +288,7 @@ export default function NoShowPredictor({ mode = "member" }) {
             </button>
             <button
               type="button"
+              role="tab"
               className={`${styles.tab} ${activeTab === "agents" ? styles.activeTab : ""}`}
               onClick={() => setActiveTab("agents")}
               aria-selected={activeTab === "agents"}

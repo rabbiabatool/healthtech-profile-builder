@@ -25,11 +25,15 @@ jobs:
 
       - name: Run Ruff Linter
         run: |
-          ruff check backend/ --select E,F,W --ignore E501
+          ruff check backend/ --select E,F,W --ignore E501,E402
 
   backend-tests:
     name: Backend Unit, API, Model Smoke & Security Tests
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: test-ci-secret-key-at-least-32-chars-long
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/healthtech_test_db
+      DJANGO_DEBUG: "False"
     services:
       postgres:
         image: postgres:16-alpine

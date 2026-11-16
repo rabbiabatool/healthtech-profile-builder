@@ -15,24 +15,23 @@ import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from agents.redaction import check_prompt_security, redact_sensitive_data, sanitize_dict_deep
-from agents.schemas import CitationItem, StructuredAgentResponse, ToolCallRequest, ToolExecutionResult
-from agents.tools import TOOL_REGISTRY, BaseAgentTool, get_tool
+from agents.tools import get_tool
 
 
 def extract_appointment_datetime(query: str, ref_date: Optional[date] = None) -> tuple[str, Optional[str]]:
     """Extracts target date (YYYY-MM-DD) and optional slot time (HH:MM) from natural language query.
-    
+
     Defaults ref_date to date(2026, 11, 8) (project benchmark timeline).
     """
     if ref_date is None:
         ref_date = date(2026, 11, 8)
-    
+
     q_lower = query.lower()
-    
+
     # 1. Extract Date
     iso_match = re.search(r"\b(202[0-9]-[0-1][0-9]-[0-3][0-9])\b", query)
     target_date = None
@@ -53,9 +52,9 @@ def extract_appointment_datetime(query: str, ref_date: Optional[date] = None) ->
             if re.search(rf"\b{day_name}\b", q_lower):
                 found_day = day_idx
                 break
-                
+
         is_next_week = "next week" in q_lower or "next" in q_lower
-        
+
         if found_day is not None:
             if is_next_week:
                 days_until_next_monday = (7 - ref_date.weekday())

@@ -9,3 +9,7 @@ pytest-django>=4.8
 drf-spectacular[sidecar]>=0.28
 gunicorn>=22.0
 requests>=2.31
+pydantic>=2.6
+google-generativeai>=0.8.0
+cryptography>=42.0.0
+

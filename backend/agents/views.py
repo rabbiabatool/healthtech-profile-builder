@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -191,7 +190,8 @@ class AgentWorkflowView(APIView):
         },
     )
     def post(self, request):
-        from agents.planner import MultiStepAgentPlanner, asdict
+        from dataclasses import asdict
+        from agents.planner import MultiStepAgentPlanner
 
         data = request.data or {}
         query = str(data.get("query", "")).strip()

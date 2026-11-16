@@ -14,8 +14,8 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 from pydantic import BaseModel, ValidationError
 
-from agents.redaction import check_prompt_security, redact_sensitive_data, sanitize_dict_deep
-from agents.schemas import CitationItem, StructuredAgentResponse, ToolCallRequest
+from agents.redaction import check_prompt_security, redact_sensitive_data
+from agents.schemas import CitationItem, StructuredAgentResponse
 from agents.session_manager import TokenBudgetManager, estimate_token_count, get_session_manager
 from rag.advanced_engine import get_advanced_store
 
@@ -156,7 +156,7 @@ def run_structured_generation(
     filter_metadata: Optional[Dict[str, Any]] = None,
 ) -> StructuredAgentResponse:
     """Executes schema-validated generation with security checks, token budgeting, and bounded retries."""
-    t0 = time.time()
+    time.time()
     session_mgr = get_session_manager()
     budget_mgr = TokenBudgetManager()
 

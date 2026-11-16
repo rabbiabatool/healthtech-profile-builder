@@ -4,7 +4,7 @@ import pytest
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from mlcore import config, registry
-from predictions.tests.conftest import artifact_dir, model_ready  # noqa: F401
+pytest_plugins = ["predictions.tests.conftest"]
 from predictions.tests.samples import VALID
 
 pytestmark = pytest.mark.django_db

@@ -4,7 +4,7 @@ from mlcore import config, eda
 
 
 def test_eda_writes_summary_and_figures(tmp_path):
-    summary = eda.main(out_dir=tmp_path)
+    eda.main(out_dir=tmp_path)
 
     for name in (
         "eda_summary.json",

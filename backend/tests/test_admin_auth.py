@@ -5,7 +5,6 @@ from django.contrib.sessions.models import Session
 from django.utils import timezone
 
 from accounts.models import Role, User
-from profiles.models import HealthProfile
 
 pytestmark = pytest.mark.django_db
 

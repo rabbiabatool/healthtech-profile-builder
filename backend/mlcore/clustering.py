@@ -82,12 +82,12 @@ def extract_engagement_features(df: pd.DataFrame) -> pd.DataFrame:
     engagement_df["scheduled_hour"] = df["scheduled_hour"].astype(float)
     engagement_df["previous_appointments"] = df["previous_appointments"].astype(float)
     engagement_df["previous_no_shows"] = df["previous_no_shows"].astype(float)
-    
+
     # Derived engagement metric: attendance ratio in [0, 1]
     denom = engagement_df["previous_appointments"] + 1.0
     attended = (engagement_df["previous_appointments"] - engagement_df["previous_no_shows"]).clip(lower=0.0)
     engagement_df["attendance_ratio"] = attended / denom
-    
+
     engagement_df["distance_km"] = df["distance_km"].astype(float)
     engagement_df["reminder_sent"] = df["reminder_sent"].astype(float)
 
@@ -115,7 +115,7 @@ def evaluate_cluster_range(
     """Evaluate K-Means and Agglomerative Clustering across k in [2, 6]."""
     n_samples = len(scaled_data)
     rng = np.random.RandomState(seed)
-    
+
     # Stratified/random subsample for hierarchical clustering efficiency
     subsample_idx = rng.choice(n_samples, size=min(sample_size, n_samples), replace=False)
     subsample_data = scaled_data[subsample_idx]
@@ -419,7 +419,7 @@ def build_clustering_report_markdown(
 ) -> None:
     """Generate comprehensive documentation of the clustering study."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     k_evals = results["k_evaluations"]
     profiles = results["cluster_profiles"]
     pca_info = results["pca_summary"]
@@ -486,7 +486,7 @@ PCA was fitted to reduce the 7-dimensional standardized space into 2 principal c
         w2 = pca_info["component_loadings"]["PC2"].get(feat, 0.0)
         md += f"| `{feat}` | {w1:+.4f} | {w2:+.4f} |\n"
 
-    md += f"""
+    md += """
 - **Interpretation**:
   - **PC1** captures overall appointment engagement volume and attendance consistency.
   - **PC2** captures logistical horizon (lead time) and geographic distance.

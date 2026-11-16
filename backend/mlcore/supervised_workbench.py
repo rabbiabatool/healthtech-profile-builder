@@ -19,9 +19,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import joblib
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 
 from mlcore import config, evaluate, pipeline, schema, splits
@@ -45,7 +43,7 @@ def run_grid_search_tuning(X_train, y_train, groups, seed=config.SEED, cv=3):
     }
     cv_splitter = StratifiedGroupKFold(n_splits=cv, shuffle=True, random_state=seed)
     base_pipeline = pipeline.build_random_forest(seed=seed)
-    
+
     grid = GridSearchCV(
         base_pipeline,
         param_grid=param_grid,

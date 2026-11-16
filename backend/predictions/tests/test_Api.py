@@ -4,7 +4,7 @@ import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from mlcore import config
-from predictions import access, views
+from predictions import views
 from predictions.tests.samples import VALID, changed
 
 factory = APIRequestFactory()
@@ -132,8 +132,7 @@ def test_a_tampered_model_gives_503(tampered_model):
 
 
 def test_malformed_metadata_gives_503_and_recovers(artifact_dir, monkeypatch, tmp_path):
-    import json, shutil
-    from pathlib import Path
+    import shutil
     from mlcore import registry
 
     target = tmp_path / "corrupt_meta"

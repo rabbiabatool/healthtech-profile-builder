@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from agents.redaction import redact_sensitive_data, sanitize_dict_deep
+from agents.redaction import redact_sensitive_data
 from agents.schemas import ToolExecutionResult
 from rag.advanced_engine import get_advanced_store
 

@@ -7,16 +7,15 @@ recent turns verbatim.
 from __future__ import annotations
 
 import math
-import re
 import threading
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 def estimate_token_count(text: str) -> int:
     """Accurate token estimator based on whitespace/subword boundaries.
-    
+
     Approximately 1 token ~= 0.75 words ~= 4 characters for English text.
     """
     if not text:

@@ -43,8 +43,33 @@ export default function ProfilePage() {
   }, [router]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    async function init() {
+      try {
+        const data = await userApi("/api/profiles/me");
+        if (active) {
+          setProfile(data);
+          setLoadError("");
+        }
+      } catch (error) {
+        if (active) {
+          if (error instanceof ApiError && error.status === 401) {
+            router.replace("/login");
+          } else {
+            setLoadError(errorMessage(error));
+          }
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    init();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function handleChanged(message) {
     setNotice(message);

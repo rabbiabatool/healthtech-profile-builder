@@ -6,7 +6,6 @@ POST /api/v1/llm/rag/search – member-only, hybrid BM25 + TF-IDF with metadata 
 GET  /api/v1/llm/rag/eval-20 – member-only, runs 20-question retrieval benchmark.
 POST /api/v1/llm/rag/documents – member-only, dynamic add/update/delete re-indexing.
 """
-import json
 import os
 from pathlib import Path
 
@@ -16,7 +15,6 @@ from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
-from accounts.authentication import CookieJWTAuthentication
 from accounts.permissions import IsAdminRole, IsStandardUser
 from predictions.views import MemberMLBaseView
 

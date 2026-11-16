@@ -234,7 +234,7 @@
 # #     thresholds = {
 # #         name: evaluate.choose_threshold(y_val, val_probs[name]) for name in ("baseline", "improved")
 # #     }
-   
+
 # #     print("\n========== VALIDATION RESULTS ==========")
 
 # #     for name, model in models.items():
@@ -378,7 +378,7 @@
 #     #     "slices": evaluate.slice_metrics(X_test, y_test, probs["improved"], improved_threshold),
 #     #     "errors": evaluate.error_summary(X_test, y_test, probs["improved"], improved_threshold),
 #     # }
-    
+
 
 
 # def _build_metadata(report, df):

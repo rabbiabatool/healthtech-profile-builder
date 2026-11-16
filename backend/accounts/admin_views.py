@@ -15,8 +15,6 @@ from .serializers import AdminUserSerializer, LoginSerializer
 from .views import INVALID_LOGIN_MESSAGE, clear_auth_cookies
 
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout
-from django.middleware.csrf import get_token
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 

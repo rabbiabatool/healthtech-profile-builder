@@ -56,10 +56,12 @@ def threshold_metrics(y_true, y_prob, threshold):
     }
 
 
-def risk_band(probability, threshold):
-    if probability >= threshold:
+def risk_band(probability, high_cutpoint, medium_cutpoint=None):
+    if medium_cutpoint is None:
+        medium_cutpoint = high_cutpoint * config.MEDIUM_BAND_FRACTION
+    if probability >= high_cutpoint:
         return "HIGH"
-    if probability >= threshold * config.MEDIUM_BAND_FRACTION:
+    if probability >= medium_cutpoint:
         return "MEDIUM"
     return "LOW"
 
@@ -248,14 +250,6 @@ def permutation_summary(model, X, y_true, seed=config.SEED, n_repeats=5):
     return sorted(rows, key=lambda row: row["mean_drop_in_pr_auc"], reverse=True)
 
 
-
-
-def risk_band(probability, high_cutpoint, medium_cutpoint):
-    if probability >= high_cutpoint:
-        return "HIGH"
-    if probability >= medium_cutpoint:
-        return "MEDIUM"
-    return "LOW"
 
 
 def band_cutpoints(val_prob, threshold, low_quantile=config.LOW_BAND_QUANTILE):

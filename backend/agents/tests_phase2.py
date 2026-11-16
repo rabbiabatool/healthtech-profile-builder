@@ -10,12 +10,9 @@ from agents.redaction import (
     sanitize_dict_deep,
 )
 from agents.schemas import (
-    CitationItem,
     StructuredAgentResponse,
-    ToolCallRequest,
 )
 from agents.session_manager import (
-    ConversationTurn,
     SessionManager,
     TokenBudgetManager,
     estimate_token_count,
@@ -280,7 +277,7 @@ def test_api_session_detail_and_clear(api_client, member_user):
 
 def test_api_schema_validation_utility(api_client, member_user):
     view_val = SchemaValidationUtilityView.as_view()
-    
+
     # Valid schema test
     good_text = json.dumps({
         "session_id": "test_sess",

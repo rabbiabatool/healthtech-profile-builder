@@ -185,7 +185,7 @@ def test_mcp_adapter_denied_permission(unauth_user):
 
 def test_multistep_workflow_scheduling_flow(auth_user):
     planner = MultiStepAgentPlanner(max_steps=5)
-    
+
     # 1. First run without confirmation: should stop at write gate with confirmation prompt
     state = planner.execute_workflow(
         user_query="I want to book an appointment with cardiology next week",
@@ -252,7 +252,7 @@ def test_multistep_workflow_unavailable_slot_reconciliation(auth_user):
     # 4:00 pm (16:00) is NOT available for cardiology (only 11:00 and 14:00)
     # Planner MUST select the closest available slot (14:00)
     assert state.pending_draft["slot_time"] == "14:00"
-    
+
     # Must explain Policy Verification in the answer
     assert "Policy Verification" in state.final_response["answer"]
     # Must explicitly inform the user that 16:00 is NOT available and show available slots

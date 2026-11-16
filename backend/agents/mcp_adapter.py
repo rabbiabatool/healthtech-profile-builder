@@ -10,11 +10,10 @@ Demonstrates:
 from __future__ import annotations
 
 import json
-import time
 from typing import Any, Dict, List, Optional
 
 from agents.redaction import redact_sensitive_data
-from agents.tools import TOOL_REGISTRY, BaseAgentTool
+from agents.tools import TOOL_REGISTRY
 
 
 class MCPToolAdapter:

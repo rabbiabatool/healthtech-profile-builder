@@ -52,13 +52,13 @@ class StructuredAgentResponse(BaseModel):
     confidence_score: float = Field(default=0.9, ge=0.0, le=1.0, description="Confidence in the response accuracy")
     tool_calls: List[ToolCallRequest] = Field(default_factory=list, description="Requested tool calls")
     tool_results: List[ToolExecutionResult] = Field(default_factory=list, description="Results of tool executions")
-    
+
     # Token Budget Accounting
     prompt_tokens_used: int = Field(default=0, ge=0)
     completion_tokens_used: int = Field(default=0, ge=0)
     total_tokens_used: int = Field(default=0, ge=0)
     budget_remaining_tokens: int = Field(default=2000, ge=0)
-    
+
     # Audit & Resilience Metadata
     validation_attempts: int = Field(default=1, ge=1, le=5)
     redacted_entities_count: int = Field(default=0, ge=0)

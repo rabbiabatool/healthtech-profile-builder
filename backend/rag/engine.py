@@ -22,7 +22,7 @@ import json
 import os
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -113,26 +113,26 @@ def load_and_chunk_documents(
     """Load all .txt policy files and split into overlapping text chunks."""
     chunks: List[PolicyChunk] = []
     txt_files = sorted(docs_dir.glob("*.txt"))
-    
+
     if not txt_files:
         raise FileNotFoundError(f"No .txt policy documents found in {docs_dir}")
-    
+
     for doc_path in txt_files:
         text = doc_path.read_text(encoding="utf-8")
         doc_name = doc_path.name
-        
+
         # Split into paragraphs first (preserves semantic boundaries)
         paragraphs = re.split(r"\n{2,}", text.strip())
-        
+
         current_chunk = ""
         current_start = 0
         chunk_id = 0
-        
+
         for para in paragraphs:
             para = para.strip()
             if not para:
                 continue
-            
+
             if len(current_chunk) + len(para) <= max_chunk_chars:
                 current_chunk = (current_chunk + "\n\n" + para).strip()
             else:
@@ -149,7 +149,7 @@ def load_and_chunk_documents(
                 overlap = current_chunk[-overlap_chars:] if len(current_chunk) > overlap_chars else current_chunk
                 current_chunk = (overlap + "\n\n" + para).strip() if overlap else para
                 current_start += len(current_chunk) - len(overlap)
-        
+
         if current_chunk.strip():
             chunks.append(PolicyChunk(
                 doc_name=doc_name,
@@ -158,7 +158,7 @@ def load_and_chunk_documents(
                 char_start=current_start,
                 char_end=current_start + len(current_chunk),
             ))
-    
+
     return chunks
 
 
@@ -185,7 +185,7 @@ class PolicyVectorStore:
         q_vec = self.vectorizer.transform([query])
         sims = cosine_similarity(q_vec, self.matrix).flatten()
         top_indices = np.argsort(sims)[::-1][:top_k]
-        
+
         results = []
         for idx in top_indices:
             if sims[idx] > 0.0:
@@ -234,29 +234,29 @@ def call_llm(
 ) -> Dict[str, Any]:
     """Call Gemini with strict grounded system prompt and return parsed JSON response."""
     global _last_call_time
-    
+
     # Rate limiting
     elapsed = time.time() - _last_call_time
     if elapsed < MIN_CALL_INTERVAL_SECONDS:
         time.sleep(MIN_CALL_INTERVAL_SECONDS - elapsed)
-    
+
     # Assemble context block
     context_block = "\n\n---\n\n".join(
         f"[Source: {p['doc_name']}]\n{p['text']}" for p in context_passages
     )
-    
+
     full_prompt = f"""CONTEXT PASSAGES:
 {context_block}
 
 MEMBER QUESTION: {question}
 
 Remember: only answer from the provided passages. Return only valid JSON."""
-    
+
     approx_in = _approx_tokens(SYSTEM_PROMPT + full_prompt)
-    
+
     # Prefer env var, fall back to passed key
     resolved_key = api_key or os.environ.get("GEMINI_API_KEY", "")
-    
+
     if not resolved_key or resolved_key == "GEMINI_API_KEY_NOT_SET":
         # Check for topics absent from approved policies
         lower_q = question.lower()
@@ -292,11 +292,11 @@ Remember: only answer from the provided passages. Return only valid JSON."""
             "model_used": "mock-no-api-key",
             "latency_ms": 0,
         }
-    
+
     try:
         import google.generativeai as genai
         genai.configure(api_key=resolved_key)
-        
+
         model = genai.GenerativeModel(
             model_name=model_name,
             system_instruction=SYSTEM_PROMPT,
@@ -306,7 +306,7 @@ Remember: only answer from the provided passages. Return only valid JSON."""
                 response_mime_type="application/json",
             ),
         )
-        
+
         t0 = time.time()
         response = model.generate_content(
             full_prompt,
@@ -314,19 +314,19 @@ Remember: only answer from the provided passages. Return only valid JSON."""
         )
         latency_ms = int((time.time() - t0) * 1000)
         _last_call_time = time.time()
-        
+
         raw_text = response.text.strip()
         # Strip accidental markdown fences
         raw_text = re.sub(r"^```json?\s*", "", raw_text, flags=re.IGNORECASE)
         raw_text = re.sub(r"\s*```$", "", raw_text)
-        
+
         parsed = json.loads(raw_text)
         parsed["model_used"] = model_name
         parsed["latency_ms"] = latency_ms
         parsed.setdefault("approximate_input_tokens", approx_in)
         parsed.setdefault("approximate_output_tokens", _approx_tokens(parsed.get("answer", "")))
         return parsed
-        
+
     except json.JSONDecodeError as e:
         return {
             "answer": "I don't have enough information in the approved clinic policies to answer that.",
@@ -391,10 +391,10 @@ def answer_question(
             "approximate_input_tokens": 0,
             "approximate_output_tokens": 0,
         }
-    
+
     is_injection = detect_injection(question)
     is_medical = detect_medical_request(question)
-    
+
     if is_injection:
         return {
             "answer": "That request falls outside what I'm able to help with here.",
@@ -405,7 +405,7 @@ def answer_question(
             "approximate_input_tokens": _approx_tokens(question),
             "approximate_output_tokens": 10,
         }
-    
+
     if is_medical:
         return {
             "answer": (
@@ -420,10 +420,10 @@ def answer_question(
             "approximate_input_tokens": _approx_tokens(question),
             "approximate_output_tokens": 50,
         }
-    
+
     store = get_store()
     passages = store.retrieve(question, top_k=top_k)
-    
+
     if not passages:
         return {
             "answer": "I don't have enough information in the approved clinic policies to answer that.",
@@ -434,7 +434,7 @@ def answer_question(
             "approximate_input_tokens": _approx_tokens(question),
             "approximate_output_tokens": 15,
         }
-    
+
     result = call_llm(
         question=question,
         context_passages=passages,
@@ -443,12 +443,12 @@ def answer_question(
         max_output_tokens=max_output_tokens,
         api_key=api_key,
     )
-    
+
     # Append retrieval metadata for transparency
     result["retrieved_passages"] = [
         {"doc_name": p["doc_name"], "score": round(p["score"], 4), "excerpt": p["text"][:200] + "..."}
         for p in passages
     ]
-    
+
     return result
 

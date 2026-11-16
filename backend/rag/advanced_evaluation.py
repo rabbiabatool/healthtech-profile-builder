@@ -11,14 +11,12 @@ Evaluates retrieval separately from generation across 20 labeled questions:
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from rag.advanced_engine import (
     AdvancedHybridVectorStore,
-    DEFAULT_DOCUMENTS,
     get_advanced_store,
     run_chunk_size_experiment,
 )
@@ -225,14 +223,14 @@ def evaluate_retrieval_system(
 ) -> Dict[str, Any]:
     """Evaluate retrieval engine across all 20 benchmark questions."""
     q_results = []
-    
+
     hits_at_1 = 0
     hits_at_3 = 0
     hits_at_5 = 0
     correct_citations_count = 0
     total_expected_citations = 0
     groundedness_scores = []
-    
+
     correct_abstentions = 0
     total_abstention_targets = 0
 
@@ -336,10 +334,10 @@ def run_comparative_rag_benchmark(store: Optional[AdvancedHybridVectorStore] = N
     """Execute both Baseline and Advanced Hybrid RAG and return before/after comparison."""
     if store is None:
         store = get_advanced_store()
-    
+
     baseline_metrics = evaluate_retrieval_system(store, use_hybrid=False, top_k=3)
     advanced_metrics = evaluate_retrieval_system(store, use_hybrid=True, top_k=3)
-    
+
     sample_queries = [item["question"] for item in EVALUATION_20_DATASET[:6]]
     chunk_comparison = run_chunk_size_experiment(sample_queries)
 

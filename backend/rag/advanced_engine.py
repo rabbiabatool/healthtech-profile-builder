@@ -11,16 +11,14 @@ Implements:
 from __future__ import annotations
 
 import hashlib
-import json
 import math
-import os
 import re
 import time
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -263,7 +261,7 @@ def chunk_document(
     chunks: List[AdvancedChunk] = []
     text = doc.content.strip()
     paragraphs = re.split(r"\n{2,}", text)
-    
+
     current_text = ""
     current_start = 0
     chunk_idx = 0
@@ -326,7 +324,7 @@ class AdvancedHybridVectorStore:
         self.chunk_overlap = chunk_overlap
         self.documents: Dict[str, PolicyDocument] = {}
         self.chunks: List[AdvancedChunk] = []
-        
+
         # Search indices
         self.bm25_index: Optional[BM25Index] = None
         self.tfidf_vectorizer: Optional[TfidfVectorizer] = None
@@ -416,7 +414,7 @@ class AdvancedHybridVectorStore:
             return []
 
         n_chunks = len(self.chunks)
-        
+
         # 1. BM25 Lexical Scores
         bm25_scores = self.bm25_index.get_scores(query)
         bm25_ranking = np.argsort(bm25_scores)[::-1]
@@ -430,7 +428,7 @@ class AdvancedHybridVectorStore:
 
         # 3. Reciprocal Rank Fusion (RRF) with exact entity bonus
         fused_scores = np.zeros(n_chunks, dtype=float)
-        
+
         # Extract potential exact numbers/keywords (e.g. "180", "48", "24", "10", "sms")
         exact_tokens = set(re.findall(r"\b\d+\b|\bsms\b|\bmri\b", query.lower()))
 
@@ -460,7 +458,7 @@ class AdvancedHybridVectorStore:
             if has_sem:
                 r_sem = sem_ranks.get(idx, n_chunks)
                 score_rrf += weight_semantic / (rrf_k + r_sem)
-            
+
             # Exact term boost
             chunk_tokens = set(re.findall(r"\b\w+\b", chunk.text.lower()))
             overlap_count = len(exact_tokens & chunk_tokens)
@@ -530,7 +528,7 @@ def run_chunk_size_experiment(sample_queries: List[str]) -> Dict[str, Any]:
         t0 = time.time()
         n_hits = 0
         total_tokens = 0
-        
+
         for q in sample_queries:
             results = store.retrieve_hybrid(q, top_k=3)
             if results:

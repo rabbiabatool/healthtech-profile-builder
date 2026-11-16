@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate, logout
+from django.contrib.auth import logout
 
 from .authentication import enforce_csrf
 from .models import Role, User

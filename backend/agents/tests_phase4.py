@@ -1,5 +1,4 @@
 """Tests for Week 5 Phase 4: Background Task Queue, Safe Retries, Model Drift Monitoring & Admin Audit."""
-import time
 from types import SimpleNamespace
 import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -11,8 +10,8 @@ from agents.admin_views import (
     TaskJobListView,
     TaskJobSubmitView,
 )
-from agents.monitoring import ModelMonitor, get_model_monitor
-from agents.task_queue import BackgroundTaskQueue, get_task_queue
+from agents.monitoring import ModelMonitor
+from agents.task_queue import BackgroundTaskQueue
 
 
 @pytest.fixture

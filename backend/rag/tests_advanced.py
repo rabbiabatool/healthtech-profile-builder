@@ -13,7 +13,6 @@ from rag.advanced_engine import (
 )
 from rag.advanced_evaluation import (
     EVALUATION_20_DATASET,
-    evaluate_retrieval_system,
     run_comparative_rag_benchmark,
 )
 from rag.views import (
@@ -69,7 +68,7 @@ def test_document_metadata_and_versioning():
 
 def test_advanced_store_dynamic_lifecycle():
     store = AdvancedHybridVectorStore()
-    
+
     # 1. Add document
     doc = PolicyDocument(
         doc_id="billing_policy_v1",
@@ -99,7 +98,7 @@ def test_advanced_store_dynamic_lifecycle():
         version="1.1.0",
     )
     assert store.documents["billing_policy_v1"].version == "1.1.0"
-    
+
     # Check update retrieval
     res_updated = store.retrieve_hybrid("preventative screening wellness waiver", top_k=2)
     assert len(res_updated) > 0
@@ -120,7 +119,7 @@ def test_advanced_store_dynamic_lifecycle():
 
 def test_metadata_filtering():
     store = get_advanced_store()
-    
+
     # Filter by category = 'booking'
     results_booking = store.retrieve_hybrid("appointments and scheduling", filter_metadata={"category": "booking"}, top_k=5)
     for r in results_booking:
@@ -169,11 +168,11 @@ def test_benchmark_20_questions_structure():
 def test_comparative_benchmark_execution():
     store = get_advanced_store()
     comp = run_comparative_rag_benchmark(store)
-    
+
     assert "baseline" in comp
     assert "advanced_hybrid" in comp
     assert "improvement_delta" in comp
-    
+
     adv = comp["advanced_hybrid"]
     assert adv["recall_at_1_pct"] >= 80.0
     assert adv["recall_at_3_pct"] >= 90.0

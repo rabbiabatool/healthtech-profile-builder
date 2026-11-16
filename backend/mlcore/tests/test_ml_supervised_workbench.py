@@ -1,9 +1,6 @@
-import json
-from pathlib import Path
 
 import pytest
 
-from mlcore import config, schema
 from mlcore.data_generation import generate_appointments
 from mlcore.supervised_workbench import train_and_evaluate_all
 

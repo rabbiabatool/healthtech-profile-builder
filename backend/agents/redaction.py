@@ -31,7 +31,7 @@ REDACTION_PATTERNS: List[Tuple[str, re.Pattern, str]] = [
 
 def redact_sensitive_data(text: str) -> Tuple[str, List[str]]:
     """Redacts PII, PHI, and credentials from string input.
-    
+
     Returns:
         redacted_text: Sanitized string with sensitive entities masked.
         redacted_types: List of detected entity types that were redacted.
@@ -84,7 +84,7 @@ MEDICAL_PATTERNS: List[re.Pattern] = [
 
 def check_prompt_security(text: str) -> Dict[str, any]:
     """Inspects text for prompt injection attacks and clinical medical queries.
-    
+
     Returns:
         {
             "is_safe": bool,

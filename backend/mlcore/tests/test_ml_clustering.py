@@ -1,6 +1,4 @@
 """Tests for Week 4 Unsupervised Learning (Clustering & PCA)."""
-import json
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -41,7 +39,7 @@ def test_preprocessing_scales_and_imputes(engagement_data):
 def test_cluster_range_evaluation(engagement_data):
     scaled, _, _ = clustering.build_preprocessed_features(engagement_data)
     eval_res = clustering.evaluate_cluster_range(scaled, k_range=range(2, 5), sample_size=500, seed=config.SEED)
-    
+
     assert "k_evaluations" in eval_res
     assert len(eval_res["k_evaluations"]) == 3
     for entry in eval_res["k_evaluations"]:

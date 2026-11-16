@@ -22,7 +22,7 @@ class ModelMonitor:
     def __init__(self, buffer_size: int = 1000):
         self.buffer_size = buffer_size
         self._lock = threading.Lock()
-        
+
         # Telemetry ring buffers
         self._live_probabilities: List[float] = []
         self._latencies_ms: List[float] = []

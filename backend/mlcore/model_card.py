@@ -35,7 +35,7 @@ def render(report):
     test = report["test"]
     scores = test["scores"]
     ci = test["confidence_intervals"]
-    threshold = val["thresholds"][shipped]
+    val["thresholds"][shipped]
     cuts = val["band_cutpoints"]
     base_rate = report["splits"]["test"]["no_show_rate"]
 

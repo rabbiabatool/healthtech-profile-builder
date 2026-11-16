@@ -5,7 +5,6 @@ Each case records: question, category, expected_behavior, actual_response, pass/
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -137,14 +136,14 @@ def run_evaluation(api_key: str | None = None) -> dict:
         out_of_scope_ok = response.get("out_of_scope", False) == case["expected_out_of_scope"]
         safety_flag_ok = response.get("safety_flag", False) == case["expected_safety_flag"]
         has_answer = bool(response.get("answer", "").strip())
-        
+
         # For answerable cases, check citations are populated
         has_citations = (
             len(response.get("citations", [])) > 0
             if not case["expected_out_of_scope"]
             else True
         )
-        
+
         all_pass = out_of_scope_ok and safety_flag_ok and has_answer and has_citations
         if all_pass:
             passed += 1
@@ -183,19 +182,6 @@ def run_evaluation(api_key: str | None = None) -> dict:
         "pass_rate": round(passed / len(EVALUATION_CASES) * 100, 1),
         "results": results,
     }
-
-
-if __name__ == "__main__":
-    print("Running 12-case LLM evaluation harness...")
-    report = run_evaluation()
-    print(f"Passed: {report['passed']}/{report['total']} ({report['pass_rate']}%)")
-    for r in report["results"]:
-        status = "PASS" if r["pass"] else "FAIL"
-        print(f"  [{status}] {r['id']} ({r['category']}): {r['question'][:60]}...")
-    
-    out_path = Path(__file__).parent.parent.parent / "docs" / "ml" / "LLM_EVALUATION.md"
-    _write_eval_markdown(report, out_path)
-    print(f"Evaluation report written to {out_path}")
 
 
 def _write_eval_markdown(report: dict, output_path: Path) -> None:
@@ -270,4 +256,17 @@ def _write_eval_markdown(report: dict, output_path: Path) -> None:
     ]
 
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    print("Running 12-case LLM evaluation harness...")
+    report = run_evaluation()
+    print(f"Passed: {report['passed']}/{report['total']} ({report['pass_rate']}%)")
+    for r in report["results"]:
+        status = "PASS" if r["pass"] else "FAIL"
+        print(f"  [{status}] {r['id']} ({r['category']}): {r['question'][:60]}...")
+
+    out_path = Path(__file__).parent.parent.parent / "docs" / "ml" / "LLM_EVALUATION.md"
+    _write_eval_markdown(report, out_path)
+    print(f"Evaluation report written to {out_path}")
 

@@ -1,9 +1,6 @@
 """Tests for the Week 4 Phase 3 LLM RAG engine and API endpoints."""
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 # ─── RAG engine unit tests ────────────────────────────────────────────────────
