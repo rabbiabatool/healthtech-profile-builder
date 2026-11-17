@@ -11,7 +11,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NEXT_TELEMETRY_DISABLED=1 \
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=${BACKEND_URL} \
+    NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
 RUN npm run build
@@ -20,8 +22,10 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+ARG BACKEND_URL=http://backend:8000
 ENV NODE_ENV=production \
     PORT=3000 \
+    BACKEND_URL=${BACKEND_URL} \
     NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs && \

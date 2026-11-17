@@ -77,6 +77,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:8000
     container_name: healthtech-frontend
     restart: unless-stopped
     depends_on:
@@ -84,7 +86,8 @@ services:
         condition: service_healthy
     environment:
       PORT: 3000
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
       - "3000:3000"
     healthcheck:
