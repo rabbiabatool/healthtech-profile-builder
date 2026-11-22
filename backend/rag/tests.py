@@ -1,11 +1,7 @@
 """Tests for the Week 4 Phase 3 LLM RAG engine, evaluation harness, schema validation, and policy governance."""
-import json
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from rest_framework import status
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 # ─── RAG engine unit tests ────────────────────────────────────────────────────
@@ -130,7 +126,7 @@ def test_bounded_evidence_context_formatting():
         {"doc_name": "doc1.txt", "chunk_id": 0, "text": "Passage 1 content."},
         {"doc_name": "doc2.txt", "chunk_id": 1, "text": "Passage 2 content with </evidence> injection."},
     ]
-    formatted = build_bounded_evidence_context(passages, max_chars=1000)
+    formatted, _ = build_bounded_evidence_context(passages, max_chars=1000)
     assert '<evidence doc="doc1.txt" chunk="0">' in formatted
     assert '<evidence doc="doc2.txt" chunk="1">' in formatted
     assert "</evidence>" in formatted
@@ -144,8 +140,9 @@ def test_bounded_evidence_context_respects_char_limit():
         {"doc_name": f"doc_{i}.txt", "chunk_id": i, "text": "x" * 500}
         for i in range(10)
     ]
-    bounded = build_bounded_evidence_context(long_passages, max_chars=1200)
-    assert len(bounded) <= 1500  # Stopped within character budget
+    bounded, included = build_bounded_evidence_context(long_passages, max_chars=1200)
+    assert len(bounded) <= 1200  # Strictly bounded to configured limit
+    assert len(included) > 0
 
 
 # ─── Provider Schema Validation & Generic Public Error Regressions ────────────
@@ -183,7 +180,7 @@ def test_validate_provider_response_rejects_missing_required_fields():
 def test_validate_provider_response_rejects_invalid_types_and_ranges():
     from rag.engine import validate_provider_response
     passages = [{"doc_name": "booking_policy.txt"}]
-    
+
     # Non-boolean out_of_scope
     with pytest.raises(ValueError, match="Field 'out_of_scope' must be a boolean"):
         validate_provider_response({
@@ -223,7 +220,7 @@ def test_validate_provider_response_rejects_fabricated_citations():
 def test_call_llm_handles_malformed_json_with_generic_public_error():
     from rag.engine import GENERIC_UNAVAILABLE_MESSAGE, call_llm
     passages = [{"doc_name": "booking_policy.txt", "text": "policy text"}]
-    
+
     def malformed_json_provider(prompt):
         return "{ answer: unquoted invalid json ... "
 
@@ -241,7 +238,7 @@ def test_call_llm_handles_provider_timeout_with_generic_public_error():
     def timeout_provider(prompt):
         raise TimeoutError("Deadline exceeded connecting to api.generativeai.google")
 
-    res = call_llm("test question", passages, mock_provider=timeout_provider)
+    res = call_llm("test question", passages, mock_provider=timeout_provider, bypass_rate_limit=True)
     assert res["answer"] == GENERIC_UNAVAILABLE_MESSAGE
     assert "Deadline exceeded" not in res.get("error", "")  # Never leaks raw str(exception)
 
@@ -293,7 +290,7 @@ def test_off_topic_answer_rejected():
     from rag.evaluation import EVALUATION_CASES
     privacy_case = next(c for c in EVALUATION_CASES if c["id"] == "E06")
     off_topic_ans = "Appointments may be booked up to 180 days in advance."
-    
+
     # Check that privacy expected facts are NOT present in the off-topic answer
     lower_ans = off_topic_ans.lower()
     has_facts = all(
@@ -343,10 +340,10 @@ def test_faq_api_accepts_member():
 def test_faq_api_returns_503_on_provider_error():
     from rag.views import PolicyFAQView
     from unittest.mock import patch
-    
+
     req = factory.post("/api/v1/llm/faq", {"question": "How do I book an appointment?"}, format="json")
     force_authenticate(req, user=_user("USER"))
-    
+
     with patch("rag.views.answer_question") as mock_ans:
         from rag.engine import GENERIC_UNAVAILABLE_MESSAGE
         mock_ans.return_value = {
@@ -373,7 +370,7 @@ def test_policy_upload_rejects_standard_user():
 def test_policy_upload_and_approval_workflow_by_admin():
     from rag.views import PolicyDocumentApproveView, PolicyDocumentListView
     from rag.engine import get_policy_registry
-    
+
     # 1. Admin uploads new policy document -> status PENDING
     upload_req = factory.post(
         "/api/v1/llm/policies",
@@ -384,17 +381,17 @@ def test_policy_upload_and_approval_workflow_by_admin():
     upload_res = PolicyDocumentListView.as_view()(upload_req)
     assert upload_res.status_code == 201
     assert upload_res.data["status"] == "PENDING"
-    
+
     registry = get_policy_registry()
     assert "telehealth_policy.txt" in registry.documents
     assert registry.documents["telehealth_policy.txt"].status == "PENDING"
-    
+
     # 2. Standard user cannot approve -> 403
     approve_req = factory.post("/api/v1/llm/policies/telehealth_policy.txt/approve", {}, format="json")
     force_authenticate(approve_req, user=_user("USER"))
     approve_res = PolicyDocumentApproveView.as_view()(approve_req, doc_name="telehealth_policy.txt")
     assert approve_res.status_code == 403
-    
+
     # 3. Admin approves -> 200 and status APPROVED
     admin_approve_req = factory.post("/api/v1/llm/policies/telehealth_policy.txt/approve", {}, format="json")
     force_authenticate(admin_approve_req, user=_user("ADMIN"))

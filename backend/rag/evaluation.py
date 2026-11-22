@@ -9,7 +9,6 @@ a comprehensive comparative evaluation report.
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
@@ -154,15 +153,15 @@ def verify_grounded_support(answer: str, citations: List[str], retrieved_passage
     """Verify that every cited document is present in retrieved context and actually supports claims."""
     if not citations:
         return True, "No citations required."
-    
+
     context_docs = {p["doc_name"]: p.get("excerpt", p.get("text", "")) for p in retrieved_passages}
-    
+
     for cit in citations:
         if cit == "ai_disclaimer.txt":
             continue
         if cit not in context_docs:
             return False, f"Cited document '{cit}' was not retrieved in context."
-            
+
     return True, "Citations verified against retrieved context."
 
 
@@ -202,16 +201,16 @@ def run_evaluation(
         )
         latency = int((time.time() - t0) * 1000)
         total_latency += latency
-        
+
         actual_answer = response.get("answer", "")
         actual_citations = response.get("citations", [])
         retrieved = response.get("retrieved_passages", [])
-        
+
         # 1. Flag validations
         out_of_scope_ok = response.get("out_of_scope", False) == case["expected_out_of_scope"]
         safety_flag_ok = response.get("safety_flag", False) == case["expected_safety_flag"]
         has_answer = bool(actual_answer.strip())
-        
+
         # 2. Fact verification (exact expected facts present in answer)
         facts_ok = True
         lower_ans = actual_answer.lower()
@@ -221,13 +220,13 @@ def run_evaluation(
                 any(f_var in lower_ans for f_var in fact.lower().split("|"))
                 for fact in case["expected_facts"]
             )
-            
+
         # 3. Citation validation
         if case["expected_citations"]:
             citations_ok = any(ec in actual_citations for ec in case["expected_citations"])
         else:
             citations_ok = len(actual_citations) == 0 or actual_citations == ["ai_disclaimer.txt"]
-            
+
         # 4. Grounded support verification
         grounding_ok, grounding_msg = verify_grounded_support(actual_answer, actual_citations, retrieved)
 
@@ -301,9 +300,9 @@ def _write_eval_markdown(
 ) -> None:
     """Format and write the evaluation report to markdown, including strict vs. relaxed retrieval execution."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     mode_desc = "Live Provider (Gemini API)" if report.get("mode") == "live_provider" else "Offline Grounded Extractive Engine"
-    
+
     lines = [
         "# LLM Policy FAQ Assistant – Comprehensive Evaluation Report",
         "",
@@ -370,7 +369,7 @@ def _write_eval_markdown(
         "| Metric | Strict (top_k=3) | Relaxed (top_k=6) | Delta / Trade-off |",
         "|:---|:---:|:---:|:---|",
     ]
-    
+
     strict_tokens = report.get("total_approx_tokens", 0)
     relaxed_tokens = relaxed_report.get("total_approx_tokens", 0) if relaxed_report else strict_tokens * 2
     strict_pass = report.get("pass_rate", 0)
@@ -408,14 +407,14 @@ if __name__ == "__main__":
     comp = run_comparative_retrieval_evaluation()
     strict_rep = comp["strict"]
     relaxed_rep = comp["relaxed"]
-    
+
     print(f"Strict  (top_k=3) Passed: {strict_rep['passed']}/{strict_rep['total']} ({strict_rep['pass_rate']}%)")
     print(f"Relaxed (top_k=6) Passed: {relaxed_rep['passed']}/{relaxed_rep['total']} ({relaxed_rep['pass_rate']}%)")
-    
+
     for r in strict_rep["results"]:
         status = "PASS" if r["pass"] else "FAIL"
         print(f"  [{status}] {r['id']} ({r['category']}): {r['question'][:50]}... -> {r['actual_citations']}")
-    
+
     out_path = Path(__file__).parent.parent.parent / "docs" / "ml" / "LLM_EVALUATION.md"
     _write_eval_markdown(strict_rep, out_path, relaxed_report=relaxed_rep)
     print(f"Evaluation report written successfully to {out_path}")
