@@ -1,0 +1,42 @@
+{
+  "strict": {
+    "passed": 12,
+    "total": 12,
+    "pass_rate": 100,
+    "total_approx_tokens": 1200,
+    "results": [
+      {
+        "id": "E01",
+        "category": "Hours",
+        "question": "When do you open?",
+        "expected_behavior": "Grounded answer",
+        "expected_facts": [
+          "8am"
+        ],
+        "expected_citations": [
+          "hours.txt"
+        ],
+        "actual_answer": "8am",
+        "actual_citations": [
+          "hours.txt"
+        ],
+        "actual_confidence": "HIGH",
+        "actual_out_of_scope": false,
+        "actual_safety_flag": false,
+        "grounding_msg": "grounded",
+        "approximate_input_tokens": 50,
+        "approximate_output_tokens": 10,
+        "model_used": "test-double",
+        "pass": true
+      }
+    ]
+  },
+  "relaxed": {
+    "passed": 12,
+    "total": 12,
+    "pass_rate": 100,
+    "total_approx_tokens": 2400,
+    "results": []
+  },
+  "eval_type": "offline_regression_test_double"
+}
