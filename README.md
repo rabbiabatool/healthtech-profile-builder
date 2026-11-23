@@ -357,3 +357,28 @@ Frontend checks: `npm run lint`, `npm run build`, and the manual accessibility a
 | Pagination, filtering, migrations, API documentation | Page and cursor pagination, `django-filter`, migrations `0001`-`0005`, `docs/openapi.yaml` |
 | Migrations, indexes and EXPLAIN evidence | Index table above, `docs/explain-*.txt` |
 | Hashed passwords, JWT expiry/refresh, secure token storage, CSRF for admin sessions | Authentication design above |
+
+---
+
+## Week 3 Feedback & Re-Review Additions (`week3-feedback-fixes` branch)
+
+In response to reviewer feedback, this branch introduces hardened metadata validation and comprehensive demo evidence:
+
+### 1. Robust Metadata Validation & 503 Recovery
+- **Before:** If `noshow-1.0.0.meta.json` was non-dict (e.g. `[]` or `null`) or missing required fields, `metadata.get()` threw unhandled `AttributeError`, returning `500 Internal Server Error`.
+- **After:** `backend/mlcore/registry.py` strictly validates that metadata is a JSON object and verifies all mandatory fields (`artifact_sha256`, `model_version`, `schema_version`, `threshold`, `risk_band_cutpoints`) *before* caching.
+- **503 Instead of 500:** Invalid metadata raises `ModelUnavailable` and returns HTTP `503 Service Unavailable`.
+- **Dynamic Recovery:** When the artifact metadata is repaired, subsequent requests succeed with `200 OK` immediately without requiring a server reboot.
+
+### 2. Regression Tests Added
+- `backend/mlcore/tests/test_ml_registry.py`:
+  - `test_non_object_metadata_is_refused_and_recovers`
+  - `test_missing_required_metadata_fields_is_refused_and_recovers`
+- `backend/predictions/tests/test_api.py`:
+  - `test_malformed_metadata_gives_503_and_recovers`
+- `backend/tests/test_predictions_auth.py`:
+  - `test_malformed_metadata_returns_503_not_500_and_recovers`
+
+### 3. Re-Review Artifacts
+- **Week 3 PR Documentation:** `docs/WEEK3_PR.md` containing clean-clone commands, digests, authenticated and denied request examples, AI prompt tracking, and verification evidence.
+- **Model Card:** `docs/ml/MODEL_CARD.md` containing exact AP, dummy prevalence, cutoffs, and confusion matrix error analysis.

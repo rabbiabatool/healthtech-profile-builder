@@ -10,6 +10,8 @@ urlpatterns = [
     path("api/admin/", include("accounts.admin_urls")),
     path("api/admin/", include("profiles.admin_urls")),
     path("api/admin/", include("audit.urls")),
+    path("api/v1/ml/", include("predictions.urls")),
+    path("api/v1/llm/", include("rag.urls")),
 ]
 
 if settings.DEBUG:

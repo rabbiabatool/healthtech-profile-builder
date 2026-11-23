@@ -134,3 +134,226 @@ How to fill the placeholders: `git log --format="%h %ad %s" --date=short` lists 
   - Command: `pytest -q`. Expected: 0 failed. Actual:`docs/evidence/e8-full-suite-summary.txt`.
   - Command: `python manage.py recalculate_completion --dry-run` after the real run. Expected: `Updated 0 profile(s)`. 
   - Manual: new member, fill only the six required items, optional fields blank; the completion card shows 100% and "Everything is filled in." Delete the demographics section: completion drops to 67%.
+
+
+### E10: Member-only predictions authentication and admin access removal (2026-11-01, branch `phase-13-predictions-auth-fix`)
+- Goal: Fix predictions page returning 403 Forbidden for authenticated members on `GET /api/v1/ml/model`, remove admin access to predictions through `admin/predictions` URL and backend implementation, and ensure administrators cannot access the member's prediction page.
+- Prompt (verbatim, secrets removed):
+  > You are a senior expert full stack AI Engineer. Analyze why predictions page is giving: GET http://localhost:3000/api/v1/ml/model 403 (Forbidden) and button: sign in is shown. although member has logged in and I can see access token and csrf token in cookie section. resolve this isssue so that model can be loaded. Also remove admin  access to predictions page through admin/predictions url and backend implementation for this. And admin should not be able to access member's prediction page. first analyze how profile page of member is guarded from admin access. Except these changings dont do any other change or change previous functionalities.  merge all files or commits of phase-12-dashboard-docs branch and then do all above changings in a seperate branch and tell that branch name , this branch should have all commited files of phase 12 and above changings I have asked. If there is any file to commit in phase-12-dashboard-docs branch , then first do this. Then write any tests and evidence of their execution and succesfulness and updating AI documentaion.md file for this new prompt. The acceptance is : after sign in , member would be able to access model related routes so that prediction page and its functionality would be working and Admin should not be able to access this page , even after sign in and admin should not have its prediction page or this functionality. Other existing functionalities should be changed [note: preserved/unchanged]
+- What the AI proposed:
+  - Root Cause Analysis:
+    1. In `backend/config/settings.py`, `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]` is configured as an empty list (`[]`).
+    2. The views in `backend/predictions/views.py` (`ModelInfoView` and `NoShowPredictView`) did not define `authentication_classes`. Consequently, Django REST Framework performed no authentication on requests to `/api/v1/ml/model` or `/api/v1/ml/no-show/predict`.
+    3. Even when a member was signed in with valid `access_token` and `csrftoken` cookies, `request.user` evaluated to `AnonymousUser` (`is_authenticated == False`).
+    4. The permission class `IsAdminOrMember` in `predictions/access.py` rejected the unauthenticated user with HTTP 403 Forbidden.
+    5. In the frontend component (`NoShowPredictor.js`), status 403 erroneously triggered `setState("signin")`, showing "You need to sign in to use this page" even though the member had already authenticated.
+  - Member Profile Guard Pattern:
+    Analysis of `backend/profiles/views.py` showed that member routes use `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. `CookieJWTAuthentication` strictly reads the HttpOnly `access_token` cookie and verifies CSRF on state-changing requests. `IsStandardUser` strictly verifies `request.user.role == Role.USER`. Administrators, who authenticate via server-side Django session (`admin_session` cookie) with `role == Role.ADMIN`, are rejected with 401 (if no JWT cookie) or 403 ("Standard user access only.").
+  - Architecture Fix:
+    1. In `backend/predictions/views.py`, created `MemberMLBaseView(APIView)` with `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. Refactored `ModelInfoView` and `NoShowPredictView` to inherit from `MemberMLBaseView`.
+    2. In `backend/predictions/access.py`, refactored `IsAdminOrMember` to inherit from `IsStandardUser` (requiring `Role.USER`), removing `ADMIN_ROLE` from allowed roles.
+    3. In `frontend/lib/mlClient.js`, removed admin CSRF routing, routing all prediction requests strictly through `/api/auth/csrf`.
+    4. In `frontend/components/predictions/NoShowPredictor.js`, removed admin title and intro copy. On 401, added check against `/api/admin/me`: if the user is an admin session, state transitions to `"forbidden"` with an explicit message: "Predictions are available for members only. Administrator accounts cannot access this page." On 403, transitions to `"forbidden"`.
+    5. In `backend/config/api_docs.py`, added a guard in `document()` so missing view methods do not cause `AttributeError` during Django schema resolution.
+    6. In `backend/predictions/tests/test_Api.py`, updated test roles to verify members receive 200 while admins receive 403 Forbidden.
+    7. Created `backend/tests/test_predictions_auth.py` containing end-to-end integration tests with Django's test client covering member success, CSRF enforcement, admin session rejection, admin JWT role rejection, anonymous rejection, and non-existence of admin predictions URLs.
+- My refinement: Maintained backwards compatibility for `requestPrediction` in `mlClient.js` to accept either payload or `(mode, payload)`. Kept all existing prediction validation, risk band calculation, and feature schemas untouched.
+- Scope:
+  - Files changed:
+    - `backend/predictions/views.py`
+    - `backend/predictions/access.py`
+    - `backend/predictions/tests/test_Api.py`
+    - `backend/config/api_docs.py`
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `backend/tests/test_predictions_auth.py` (new)
+    - `docs/evidence/e10-predictions-auth-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+  - Files deliberately untouched: All other profile, accounts, admin dashboard, audit, and ML training pipelines.
+- Blast radius: Restricted solely to `/api/v1/ml/*` endpoints and the frontend `/predictions` page. Member profile management, admin profile management, and audit logging are completely unaffected.
+- Validation:
+  - Unit & Integration Tests: `pytest backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 69 passed in 65.20s. Evidence captured in `docs/evidence/e10-predictions-auth-tests.txt`.
+  - Member flow verified: Authenticated member with JWT cookie retrieves model info (200) and executes prediction with CSRF (200).
+  - Admin access blocked: Authenticated admin session rejected from model info (401) and predictions (401). Admin user with JWT rejected with 403 ("Standard user access only.").
+  - Admin predictions route: `GET /api/admin/predictions` confirmed 404 (non-existent).
+
+
+### E10: Member-only predictions authentication and admin access removal (2026-11-01, branch `phase-13-predictions-auth-fix`)
+- Goal: Fix predictions page returning 403 Forbidden for authenticated members on `GET /api/v1/ml/model`, remove admin access to predictions through `admin/predictions` URL and backend implementation, and ensure administrators cannot access the member's prediction page.
+- Prompt (verbatim, secrets removed):
+  > You are a senior expert full stack AI Engineer. Analyze why predictions page is giving: GET http://localhost:3000/api/v1/ml/model 403 (Forbidden) and button: sign in is shown. although member has logged in and I can see access token and csrf token in cookie section. resolve this isssue so that model can be loaded. Also remove admin  access to predictions page through admin/predictions url and backend implementation for this. And admin should not be able to access member's prediction page. first analyze how profile page of member is guarded from admin access. Except these changings dont do any other change or change previous functionalities.  merge all files or commits of phase-12-dashboard-docs branch and then do all above changings in a seperate branch and tell that branch name , this branch should have all commited files of phase 12 and above changings I have asked. If there is any file to commit in phase-12-dashboard-docs branch , then first do this. Then write any tests and evidence of their execution and succesfulness and updating AI documentaion.md file for this new prompt. The acceptance is : after sign in , member would be able to access model related routes so that prediction page and its functionality would be working and Admin should not be able to access this page , even after sign in and admin should not have its prediction page or this functionality. Other existing functionalities should be changed [note: preserved/unchanged]
+- What the AI proposed:
+  - Root Cause Analysis:
+    1. In `backend/config/settings.py`, `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]` is configured as an empty list (`[]`).
+    2. The views in `backend/predictions/views.py` (`ModelInfoView` and `NoShowPredictView`) did not define `authentication_classes`. Consequently, Django REST Framework performed no authentication on requests to `/api/v1/ml/model` or `/api/v1/ml/no-show/predict`.
+    3. Even when a member was signed in with valid `access_token` and `csrftoken` cookies, `request.user` evaluated to `AnonymousUser` (`is_authenticated == False`).
+    4. The permission class `IsAdminOrMember` in `predictions/access.py` rejected the unauthenticated user with HTTP 403 Forbidden.
+    5. In the frontend component (`NoShowPredictor.js`), status 403 erroneously triggered `setState("signin")`, showing "You need to sign in to use this page" even though the member had already authenticated.
+  - Member Profile Guard Pattern:
+    Analysis of `backend/profiles/views.py` showed that member routes use `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. `CookieJWTAuthentication` strictly reads the HttpOnly `access_token` cookie and verifies CSRF on state-changing requests. `IsStandardUser` strictly verifies `request.user.role == Role.USER`. Administrators, who authenticate via server-side Django session (`admin_session` cookie) with `role == Role.ADMIN`, are rejected with 401 (if no JWT cookie) or 403 ("Standard user access only.").
+  - Architecture Fix:
+    1. In `backend/predictions/views.py`, created `MemberMLBaseView(APIView)` with `authentication_classes = [CookieJWTAuthentication]` and `permission_classes = [IsStandardUser]`. Refactored `ModelInfoView` and `NoShowPredictView` to inherit from `MemberMLBaseView`.
+    2. In `backend/predictions/access.py`, refactored `IsAdminOrMember` to inherit from `IsStandardUser` (requiring `Role.USER`), removing `ADMIN_ROLE` from allowed roles.
+    3. In `frontend/lib/mlClient.js`, removed admin CSRF routing, routing all prediction requests strictly through `/api/auth/csrf`.
+    4. In `frontend/components/predictions/NoShowPredictor.js`, removed admin title and intro copy. On 401, added check against `/api/admin/me`: if the user is an admin session, state transitions to `"forbidden"` with an explicit message: "Predictions are available for members only. Administrator accounts cannot access this page." On 403, transitions to `"forbidden"`.
+    5. In `backend/config/api_docs.py`, added a guard in `document()` so missing view methods do not cause `AttributeError` during Django schema resolution.
+    6. In `backend/predictions/tests/test_Api.py`, updated test roles to verify members receive 200 while admins receive 403 Forbidden.
+    7. Created `backend/tests/test_predictions_auth.py` containing end-to-end integration tests with Django's test client covering member success, CSRF enforcement, admin session rejection, admin JWT role rejection, anonymous rejection, and non-existence of admin predictions URLs.
+- My refinement: Maintained backwards compatibility for `requestPrediction` in `mlClient.js` to accept either payload or `(mode, payload)`. Kept all existing prediction validation, risk band calculation, and feature schemas untouched.
+- Scope:
+  - Files changed:
+    - `backend/predictions/views.py`
+    - `backend/predictions/access.py`
+    - `backend/predictions/tests/test_Api.py`
+    - `backend/config/api_docs.py`
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `backend/tests/test_predictions_auth.py` (new)
+    - `docs/evidence/e10-predictions-auth-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+  - Files deliberately untouched: All other profile, accounts, admin dashboard, audit, and ML training pipelines.
+- Blast radius: Restricted solely to `/api/v1/ml/*` endpoints and the frontend `/predictions` page. Member profile management, admin profile management, and audit logging are completely unaffected.
+- Validation:
+  - Unit & Integration Tests: `pytest backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 69 passed in 65.20s. Evidence captured in `docs/evidence/e10-predictions-auth-tests.txt`.
+  - Member flow verified: Authenticated member with JWT cookie retrieves model info (200) and executes prediction with CSRF (200).
+  - Admin access blocked: Authenticated admin session rejected from model info (401) and predictions (401). Admin user with JWT rejected with 403 ("Standard user access only.").
+  - Admin predictions route: `GET /api/admin/predictions` confirmed 404 (non-existent).
+
+
+### E11: Week 4 Phase 1 – Supervised Learning Comparative Workbench & Hyperparameter Tuning (2026-11-02, branch `week4-phase1-supervised-workbench`)
+- Goal: Expand the single-model ML setup into a comparative supervised learning workbench training Logistic Regression, Random Forest, and Gradient Boosting, with GridSearchCV hyperparameter tuning, train-vs-validation overfitting checks, permutation feature importance, confusion matrices, and false positive / negative error analysis.
+- Prompt (verbatim, secrets removed):
+  > WEEK 4 | Supervised + Unsupervised ML and LLM Foundations [...] Supervised learning: prepare a synthetic appointment-attendance or wellness-engagement dataset; clearly define features, labels, split strategy and leakage checks. Train at least three algorithms: Logistic Regression, Random Forest, and one of Gradient Boosting/XGBoost or SVM. Evaluate classification with confusion matrix, precision, recall, F1, ROC-AUC and PR-AUC when appropriate; compare train versus validation performance, perform stratified cross-validation and tune one model with GridSearchCV or RandomizedSearchCV. Explain feature importance or permutation importance and inspect false positives/negatives. Include a reproducible preprocessing pipeline for imputation, encoding and scaling as appropriate. [...] Acceptance checks: Provide a metrics comparison table for three supervised models, confusion matrix, one tuning experiment and a reproducible saved pipeline. [...] We will implement above task in 4 phases and in different branches , not commiting them to main branch and save evidence of tests and update AI documentation. Our flow for each phase will be: design or build, test and commit. Start phase 1
+- What the AI proposed:
+  - Dataset & Leakage Protection: Utilized the 20,000 synthetic clinical appointment dataset with 9 input features. Validated that patient-grouped splitting (`StratifiedGroupKFold` / `GroupShuffleSplit`) guarantees zero patient overlap across train (60%), validation (20%), and test (20%) splits.
+  - Preprocessing Pipelines: Built scikit-learn `Pipeline` and `ColumnTransformer` setups ensuring train-only fitting. Handled numeric features with median imputation and missingness indicators, scaled continuous values, and applied one-hot encoding for categorical variables.
+  - Algorithm Suite:
+    1. Baseline Floor: `DummyClassifier`
+    2. Linear Model: `LogisticRegression` with L2 regularisation
+    3. Bagging Ensemble: `RandomForestClassifier`
+    4. Boosting Ensemble: `HistGradientBoostingClassifier`
+    5. Tuned Ensemble: `RandomForestClassifier` tuned via `GridSearchCV`
+  - Hyperparameter Tuning: Conducted a 3-fold patient-grouped `StratifiedGroupKFold` `GridSearchCV` on the training split, optimizing for PR-AUC across tree depth, estimator counts, and split thresholds (`{'model__max_depth': 6, 'model__min_samples_split': 10, 'model__n_estimators': 100}`, achieving CV PR-AUC = 0.3131).
+  - Train vs. Validation Overfitting Analysis: Evaluated all algorithms across Train, Validation, and Test splits. Identified that unconstrained Random Forest overfits (Train-Val gap = +0.4180), whereas depth-constrained tuned Random Forest (+0.0835) and regularized Logistic Regression (-0.0051) generalize stably.
+  - Error Analysis: Inspected False Positives (driven by high lead times and past no-show counts where patients attended anyway) and False Negatives (short lead times and clean histories where unexpected personal conflicts caused an absence).
+  - API & Artifacts: Added `GET /api/v1/ml/models/comparison` view with member JWT authentication and OpenAPI schema documentation. Generated `backend/ml_artifacts/supervised_comparison.json` and `docs/ml/SUPERVISED_COMPARISON.md`.
+- Scope:
+  - Files created/modified:
+    - `backend/mlcore/config.py`
+    - `backend/mlcore/pipeline.py`
+    - `backend/mlcore/evaluate.py`
+    - `backend/mlcore/supervised_workbench.py`
+    - `backend/predictions/views.py`
+    - `backend/predictions/urls.py`
+    - `backend/mlcore/tests/test_ml_supervised_workbench.py`
+    - `backend/predictions/tests/test_comparison_api.py`
+    - `docs/ml/SUPERVISED_COMPARISON.md`
+    - `backend/ml_artifacts/supervised_comparison.json`
+    - `docs/evidence/week4/phase1-supervised-tests.txt`
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to ML core and predictions application. Existing member profile APIs, accounts, admin sessions, and audit logging remain completely unaffected.
+- Validation:
+  - Test suite: `pytest backend/mlcore/tests/test_ml_supervised_workbench.py backend/predictions/tests/ backend/tests/test_predictions_auth.py -v`: 78 passed (evidence recorded in `docs/evidence/week4/phase1-supervised-tests.txt`).
+  - OpenAPI validation: `pytest backend/tests/test_api_docs.py`: 10 passed (100%).
+
+
+### E12: Week 4 Phase 2 – Unsupervised Learning: Behavioral Clustering & PCA 2D Projection (2026-11-02, branch `week4-phase2-unsupervised-clustering`)
+- Goal: Implement an unsupervised learning engine over non-sensitive appointment engagement features, evaluating K-Means and Agglomerative Clustering across $k \in [2, 6]$ via elbow method and silhouette scores, performing 2D PCA projection, profiling clusters in neutral non-clinical terms, providing method comparison and meaningful vs. misleading cluster analysis, and exposing an authenticated API endpoint.
+- Prompt (verbatim, secrets removed):
+  > Unsupervised learning: run K-Means and one alternative such as DBSCAN or Agglomerative Clustering on non-sensitive profile/engagement features; choose scaling and cluster count using silhouette score and/or elbow method. Perform PCA for 2D visualization; describe each discovered cluster in neutral, non-clinical terms, compare methods, and explain why clusters are exploratory rather than ground-truth categories. [...] Acceptance checks: Show two clustering algorithms, PCA plot, cluster quality analysis and an explanation of meaningful versus misleading clusters. [...] We will implement above task in 4 phases and in different branches , not commiting them to main branch and save evidence of tests and update AI documentation. Our flow for each phase will be: design or build, test and commit. Start phase 1 [...] continue and at end of each phase tell what work you have done in easy words
+- What the AI proposed:
+  - Feature Selection & Privacy Safeguards: Selected 7 operational engagement features (`lead_time_days`, `scheduled_hour`, `previous_appointments`, `previous_no_shows`, `attendance_ratio`, `distance_km`, `reminder_sent`). Strictly excluded all demographic traits (`age`, `gender`, `race`, `postcode`) and clinical diagnostic data.
+  - Preprocessing: Handled missing distance data with median imputation and normalized continuous variables via `StandardScaler`.
+  - Clustering Suite:
+    1. K-Means: Evaluated across $k \in [2, 6]$, measuring inertia (Elbow curve), silhouette scores, and Davies-Bouldin separation.
+    2. Agglomerative Clustering: Evaluated hierarchical Ward linkage across $k \in [2, 6]$, comparing silhouette scores and Davies-Bouldin separation.
+  - Method Comparison: Calculated Adjusted Rand Index (ARI = 0.4866), Normalized Mutual Information (NMI = 0.4776), and contingency cross-tabulation between K-Means and Agglomerative cluster assignments.
+  - 2D PCA Dimensionality Reduction: Fitted 2 principal components explaining 41.95% of total variance (PC1 = 23.51% driven by past volume and attendance; PC2 = 18.44% driven by lead time and travel distance).
+  - Neutral Non-Clinical Archetypes: Described clusters as exploratory operational patterns with tailored scheduling recommendations (`Long-Horizon Advance Planners`, `High-Volume Recurring Clinic Attendees`, `Traditional / Offline Communications Group`, `Emerging / Low-History Visitors`, `Regional Extended-Travel Attendees`).
+  - Ethical Analysis: Explicitly documented why clusters are exploratory logistical groupings and must never be interpreted as clinical diagnoses or used to deprioritize healthcare access.
+  - API & Artifacts: Added `GET /api/v1/ml/clusters` endpoint with member JWT authentication and OpenAPI docs. Saved `backend/ml_artifacts/clustering_results.json`, `docs/ml/CLUSTERING_ANALYSIS.md`, and static figures (`docs/ml/figures/clustering_elbow_silhouette.png`, `docs/ml/figures/clustering_pca_2d.png`).
+- Scope:
+  - Files created/modified:
+    - `backend/mlcore/config.py`
+    - `backend/mlcore/clustering.py` (new)
+    - `backend/predictions/views.py`
+    - `backend/predictions/urls.py`
+    - `backend/mlcore/tests/test_ml_clustering.py` (new)
+    - `backend/predictions/tests/test_clustering_api.py` (new)
+    - `docs/ml/CLUSTERING_ANALYSIS.md` (new)
+    - `docs/ml/figures/clustering_elbow_silhouette.png` (new)
+    - `docs/ml/figures/clustering_pca_2d.png` (new)
+    - `backend/ml_artifacts/clustering_results.json` (new)
+    - `docs/evidence/week4/phase2-clustering-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Strictly scoped to ML clustering module and `GET /api/v1/ml/clusters`. All existing supervised predictions, member profiles, and admin management remain isolated and regression-free.
+- Validation:
+  - Unit & API Test Suite: `pytest backend/mlcore/tests/test_ml_clustering.py backend/predictions/tests/test_clustering_api.py backend/predictions/tests/test_comparison_api.py backend/mlcore/tests/test_ml_supervised_workbench.py backend/tests/test_predictions_auth.py backend/tests/test_api_docs.py -v`: 36 passed in 152.14s (evidence captured in `docs/evidence/week4/phase2-clustering-tests.txt`).
+  - OpenAPI verification: `test_api_docs.py` passed 10/10 with valid schema generation.
+  - Security check: Anonymous access returns 401; admin access returns 403; standard member returns 200.
+
+### Entry 13: 2026-11-02 – Week 4 Phase 3: LLM Foundations – Grounded Policy RAG FAQ Assistant
+- Objective: Design and implement a safe, educational FAQ assistant over approved fictional clinic policies using Retrieval-Augmented Generation (RAG) with Gemini 1.5 Flash, structured JSON responses, adversarial injection defenses, out-of-scope refusals, medical disclaimers, and a 12-case evaluation harness.
+- Action:
+  - Fictional Policy Documents: Authored 4 non-sensitive, fictional clinic documents in `backend/rag/docs/` (`booking_policy.txt`, `cancellation_policy.txt`, `privacy_policy.txt`, `ai_disclaimer.txt`).
+  - RAG Retrieval Engine: Built `backend/rag/engine.py` with sliding window chunking (350 chars with 60 char overlap), TF-IDF vectorizer (ngram 1-2, 3000 features, sublinear tf), and cosine similarity retrieval without external vector DB dependencies.
+  - Multi-Layer Safety & Security:
+    - Pre-retrieval adversarial prompt injection detection (`_INJECTION_RE`) catching system-override attempts, jailbreak syntax, and instruction leak requests.
+    - Medical query detector (`_MEDICAL_RE`) enforcing strict medical disclaimers and refusal to diagnose or prescribe.
+    - System prompt grounding: Zero patient PII transmission, cited source passages, explicit "insufficient information" refusal for unsupported queries.
+    - In-process rate limiting (1 sec minimum interval), 30s timeout, token estimation, and mock fallback for deterministic testing without external API credentials.
+  - Endpoints & Schemas:
+    - Created `POST /api/v1/llm/faq/` for grounded Q&A with structured schema (`answer`, `citations`, `confidence`, `safety_flag`, `out_of_scope`, `approximate_input_tokens`, `approximate_output_tokens`, `model_used`, `latency_ms`).
+    - Created `GET /api/v1/llm/faq/evaluate/` returning the live 12-case evaluation matrix.
+    - Guarded with `MemberMLBaseView` (member-only JWT; admin and anonymous access strictly rejected).
+  - 12-Case Evaluation Suite: Authored `backend/rag/evaluation.py` covering 6 answerable queries, 2 ambiguous queries, 2 out-of-scope queries, 1 medical query, and 1 adversarial injection test. Achieved 12/12 (100%) pass rate.
+  - OpenAPI & Schemas: Full `drf-spectacular` schema integration; validated against all OpenAPI constraints.
+- Scope:
+  - Files created/modified:
+    - `backend/rag/__init__.py` (new)
+    - `backend/rag/docs/booking_policy.txt` (new)
+    - `backend/rag/docs/cancellation_policy.txt` (new)
+    - `backend/rag/docs/privacy_policy.txt` (new)
+    - `backend/rag/docs/ai_disclaimer.txt` (new)
+    - `backend/rag/engine.py` (new)
+    - `backend/rag/evaluation.py` (new)
+    - `backend/rag/views.py` (new)
+    - `backend/rag/urls.py` (new)
+    - `backend/rag/tests.py` (new)
+    - `backend/config/urls.py`
+    - `backend/config/settings.py`
+    - `docs/ml/LLM_EVALUATION.md` (new)
+    - `docs/evidence/week4/phase3-llm-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Isolated to `backend/rag/` application and `/api/v1/llm/` routes. Existing ML predictions and member profiles remain untouched.
+- Validation:
+  - Unit & API tests: 27/27 passed (`backend/rag/tests.py` and `backend/tests/test_api_docs.py`).
+  - Evaluation Harness: 12/12 test cases passed; report generated in `docs/ml/LLM_EVALUATION.md`.
+
+### Entry 14: 2026-11-02 – Week 4 Phase 4: Multi-Tab Workbench UI & Full Regression Verification
+- Objective: Complete the Week 4 user experience by implementing an interactive, multi-tabbed Machine Learning & AI Workbench in Next.js, integrating all supervised, unsupervised, and LLM services with strict member authentication guards, accessible styling, and zero regressions across the codebase.
+- Action:
+  - Frontend Client Extensions: Added `fetchSupervisedComparison()`, `fetchClusteringAnalysis()`, `askFaq(question)`, and `fetchFaqEvaluation()` to `frontend/lib/mlClient.js` with automated CSRF handling.
+  - Multi-Tab Workbench UI:
+    - Tab 1: **Single Prediction** (Week 3 interactive model with form presets, instant probability calculations, risk bands, and disclaimers).
+    - Tab 2: **Supervised Benchmark** (`SupervisedComparisonTab.js` displaying 5-algorithm comparison table, train/val/test metrics, overfitting gaps, 3-fold StratifiedGroupKFold GridSearchCV tuning parameters, and feature importances).
+    - Tab 3: **Patient Clustering (PCA)** (`ClusteringTab.js` displaying K-Means vs Agglomerative metrics, 2D PCA explained variance breakdown, and 6 neutral exploratory persona cards with operational recommendations).
+    - Tab 4: **Policy FAQ Assistant (LLM)** (`PolicyFaqTab.js` featuring interactive Q&A assistant with quick prompt buttons, source citations, safety shield indicators, approximate token usage, and collapsible 12-case evaluation benchmark matrix).
+  - Security & Authentication Guard: Preserved member-only access across all tabs (anonymous redirected to sign in; admin requests strictly denied with 403 Forbidden).
+  - Production Build: Executed `npm run build` in Next.js Turbopack with 0 errors across all 11 routes.
+  - Full Regression Testing: Verified full test suite (`backend/mlcore/tests/`, `backend/predictions/tests/`, `backend/rag/tests.py`, `backend/tests/test_predictions_auth.py`, `backend/tests/test_api_docs.py`). Re-enforced strict schema category validation (`handle_unknown="error"`).
+- Scope:
+  - Files created/modified:
+    - `frontend/lib/mlClient.js`
+    - `frontend/components/predictions/NoShowPredictor.js`
+    - `frontend/components/predictions/SupervisedComparisonTab.js` (new)
+    - `frontend/components/predictions/ClusteringTab.js` (new)
+    - `frontend/components/predictions/PolicyFaqTab.js` (new)
+    - `frontend/components/predictions/predictions.module.css`
+    - `backend/mlcore/pipeline.py`
+    - `docs/evidence/week4/phase4-regression-tests.txt` (new evidence)
+    - `docs/AI_WORKFLOW.md`
+- Blast radius: Frontend workbench component updates and ML preprocessor categorical validation guard. All existing accounts, member profiles, and admin capabilities remain regression-free.
+- Validation:
+  - Frontend build: `npm run build` passed with 0 errors across 11 routes.
+  - Full regression test suite: 186/186 passed in 101.51s (evidence documented in `docs/evidence/week4/phase4-regression-tests.txt`).

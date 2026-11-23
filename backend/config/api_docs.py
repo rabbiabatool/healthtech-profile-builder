@@ -44,6 +44,8 @@ Detail = inline_serializer("Detail", {"detail": serializers.CharField()})
 
 
 def document(view_class, method, **schema):
+    if not hasattr(view_class, method):
+        return
     original = getattr(view_class, method)
 
     @wraps(original)
@@ -118,6 +120,35 @@ document(
     description="Status, completion (percent, status and missing items) and all three sections.",
     tags=[MEMBER_PROFILE],
     responses={200: MyProfileSerializer, **READ_ERRORS},
+)
+document(
+    profile_views.MyProfileView,
+    "post",
+    summary="Create my health profile",
+    description="Creates a new root health profile for the authenticated member with initialised empty sections. Returns 409 if a profile already exists.",
+    tags=[MEMBER_PROFILE],
+    request=None,
+    parameters=[CSRF_HEADER],
+    responses={
+        201: MyProfileSerializer,
+        401: UNAUTHENTICATED,
+        403: FORBIDDEN,
+        409: OpenApiResponse(description="A profile already exists for this account."),
+    },
+)
+document(
+    profile_views.MyProfileView,
+    "delete",
+    summary="Delete my health profile",
+    description="Deletes the authenticated member's root profile and related sections while preserving the account and audit history.",
+    tags=[MEMBER_PROFILE],
+    parameters=[CSRF_HEADER],
+    responses={
+        204: None,
+        401: UNAUTHENTICATED,
+        403: FORBIDDEN,
+        404: NOT_FOUND,
+    },
 )
 
 for view, serializer, label in (

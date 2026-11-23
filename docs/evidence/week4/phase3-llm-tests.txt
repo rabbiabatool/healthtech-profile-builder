@@ -1,0 +1,38 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.5, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\Super\Documents\healthtech-profile-builder\backend\venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.2.18, settings: config.settings (from ini)
+rootdir: C:\Users\Super\Documents\healthtech-profile-builder\backend
+configfile: pytest.ini
+plugins: django-4.14.0
+collecting ... collected 27 items
+
+backend\tests\test_api_docs.py::test_every_public_endpoint_is_documented PASSED [  3%]
+backend\tests\test_api_docs.py::test_every_operation_has_a_summary_and_a_tag PASSED [  7%]
+backend\tests\test_api_docs.py::test_state_changing_operations_document_the_csrf_header PASSED [ 11%]
+backend\tests\test_api_docs.py::test_the_two_cookie_sign_in_schemes_are_documented PASSED [ 14%]
+backend\tests\test_api_docs.py::test_passwords_only_appear_in_request_bodies PASSED [ 18%]
+backend\tests\test_api_docs.py::test_the_audit_log_is_documented_as_read_only PASSED [ 22%]
+backend\tests\test_api_docs.py::test_the_schema_file_can_be_generated_and_validates PASSED [ 25%]
+backend\tests\test_api_docs.py::test_interactive_docs_are_not_served_when_debug_is_off[/api/docs/] PASSED [ 29%]
+backend\tests\test_api_docs.py::test_interactive_docs_are_not_served_when_debug_is_off[/api/redoc/] PASSED [ 33%]
+backend\tests\test_api_docs.py::test_interactive_docs_are_not_served_when_debug_is_off[/api/schema/] PASSED [ 37%]
+backend\rag\tests.py::test_documents_load_and_chunk PASSED               [ 40%]
+backend\rag\tests.py::test_vector_store_retrieves_relevant_chunks PASSED [ 44%]
+backend\rag\tests.py::test_injection_detection PASSED                    [ 48%]
+backend\rag\tests.py::test_medical_detection PASSED                      [ 51%]
+backend\rag\tests.py::test_injection_returns_safety_flag PASSED          [ 55%]
+backend\rag\tests.py::test_medical_returns_safety_flag PASSED            [ 59%]
+backend\rag\tests.py::test_answerable_question_returns_structured_response PASSED [ 62%]
+backend\rag\tests.py::test_empty_question_returns_refusal PASSED         [ 66%]
+backend\rag\tests.py::test_evaluation_harness_runs_all_12_cases PASSED   [ 70%]
+backend\rag\tests.py::test_evaluation_all_cases_have_required_fields PASSED [ 74%]
+backend\rag\tests.py::test_evaluation_adversarial_cases_flagged PASSED   [ 77%]
+backend\rag\tests.py::test_evaluation_medical_cases_flagged PASSED       [ 81%]
+backend\rag\tests.py::test_faq_api_rejects_anonymous PASSED              [ 85%]
+backend\rag\tests.py::test_faq_api_rejects_admin PASSED                  [ 88%]
+backend\rag\tests.py::test_faq_api_accepts_member PASSED                 [ 92%]
+backend\rag\tests.py::test_faq_api_rejects_empty_question PASSED         [ 96%]
+backend\rag\tests.py::test_faq_evaluate_api_accepts_member PASSED        [100%]
+
+============================= 27 passed in 12.56s =============================

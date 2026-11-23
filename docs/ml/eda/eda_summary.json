@@ -1,0 +1,90 @@
+{
+  "data_version": "synthetic-appointments-1.0.0",
+  "dataset_sha256": "e86a485d5b11cb669df9c2c0e09496edaf29f4f7a557868e2542c876ad4f377b",
+  "leakage_check": {
+    "column": "checkin_delay_minutes",
+    "missing_rate_when_attended": 0.0,
+    "missing_rate_when_no_show": 1.0
+  },
+  "missing_rate_by_column": {
+    "age": 0.0,
+    "appointment_id": 0.0,
+    "appointment_type": 0.0,
+    "checkin_delay_minutes": 0.1991,
+    "day_of_week": 0.0,
+    "distance_km": 0.0814,
+    "lead_time_days": 0.0,
+    "no_show": 0.0,
+    "patient_ref": 0.0,
+    "previous_appointments": 0.0,
+    "previous_no_shows": 0.0,
+    "reminder_sent": 0.0,
+    "scheduled_hour": 0.0
+  },
+  "no_show_rate": 0.1991,
+  "numeric_summary": {
+    "age": {
+      "25%": 34.0,
+      "50%": 45.0,
+      "75%": 55.0,
+      "count": 20000.0,
+      "max": 95.0,
+      "mean": 45.19,
+      "min": 18.0,
+      "std": 15.46
+    },
+    "distance_km": {
+      "25%": 5.8,
+      "50%": 9.7,
+      "75%": 17.1,
+      "count": 18371.0,
+      "max": 100.0,
+      "mean": 13.69,
+      "min": 0.6,
+      "std": 12.51
+    },
+    "lead_time_days": {
+      "25%": 12.0,
+      "50%": 23.0,
+      "75%": 41.0,
+      "count": 20000.0,
+      "max": 180.0,
+      "mean": 29.87,
+      "min": 0.0,
+      "std": 24.53
+    },
+    "previous_appointments": {
+      "25%": 4.0,
+      "50%": 5.0,
+      "75%": 7.0,
+      "count": 20000.0,
+      "max": 17.0,
+      "mean": 5.69,
+      "min": 0.0,
+      "std": 2.59
+    },
+    "previous_no_shows": {
+      "25%": 0.0,
+      "50%": 1.0,
+      "75%": 2.0,
+      "count": 20000.0,
+      "max": 10.0,
+      "mean": 1.24,
+      "min": 0.0,
+      "std": 1.33
+    },
+    "scheduled_hour": {
+      "25%": 10.0,
+      "50%": 12.0,
+      "75%": 15.0,
+      "count": 20000.0,
+      "max": 17.0,
+      "mean": 12.48,
+      "min": 8.0,
+      "std": 2.88
+    }
+  },
+  "rows": 20000,
+  "seed": 42,
+  "unique_patients": 5765
+}
