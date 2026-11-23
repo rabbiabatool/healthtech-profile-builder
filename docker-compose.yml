@@ -39,7 +39,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-healthtech_db}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       JWT_COOKIE_SECURE: "False"
-      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000
     ports:
       - "8000:8000"
     command: >
